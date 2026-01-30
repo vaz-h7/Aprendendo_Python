@@ -3,7 +3,7 @@ print(frase [0:14:1])
 #Fatiamento - 1º indique onde quer começar, 2º indique até onde fatiar, 3º pode ser usado para pular, por exemplo de 2 em 2.
 frase.count('o')
 print(f'A letra "o" aparece {frase.count("o")} vezes!')
-print(len(frase)) #Para contar quantos espaços tem a str, podendo usar o comando "frase.strip()" para retirar os espaços dentro da str.
+print(len(frase)) #Para contar quantos espaços tem a str, podendo usar o comando "frase.strip()" para retirar os espaços antes e depois da str.
 print(frase.replace('Python', 'Programação')) #Dessa forma, eu alterei as palavras somente no comando, para efetivar a troca deveria ser:
 frase = frase.replace('Python', 'Programação')
 print(frase)

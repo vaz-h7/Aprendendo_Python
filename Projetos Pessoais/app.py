@@ -80,6 +80,23 @@ try:
 
         st.divider()
 
+        # --- LOGICA DE DATAS (Adicione após carregar o df) ---
+        df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+        df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')  # Cria uma coluna "2026-02"
+
+        # --- FILTRO DE MÊS NA SIDEBAR ---
+        meses_disponiveis = sorted(df['Mes_Ano'].unique().tolist())
+        mes_selecionado = st.sidebar.selectbox("Selecione o Mês para análise detalhada", meses_disponiveis)
+
+        # Filtra os dados para o dashboard principal
+        df_mes = df[df['Mes_Ano'] == mes_selecionado]
+
+        # --- NOVO GRÁFICO: EVOLUÇÃO MENSAL (Comparações) ---
+        st.subheader("Comparação Mensal: Entradas vs Saídas")
+        df_evolucao = df.groupby(['Mes_Ano', 'Tipo (Entrada/Saída)'])['Valor'].sum().reset_index()
+        fig_evolucao = px.line(df_evolucao, x='Mes_Ano', y='Valor', color='Tipo (Entrada/Saída)', markers=True)
+        st.plotly_chart(fig_evolucao, use_container_width=True)
+
         # --- GRÁFICOS ---
         col_esq, col_dir = st.columns(2)
 

@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import plotly.express as px
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(layout="wide", page_title="Dashboard Financeiro Profissional")
+st.set_page_config(layout="wide", page_title="Controle Financeiro Real-Time")
 
 
 # --- FUNÇÃO PARA CARREGAR DADOS ---
@@ -14,7 +14,7 @@ def load_data():
     scope = ["https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
 
-    # Tenta carregar as credenciais (Híbrido: Nuvem ou Local)
+    # Lógica Híbrida: Nuvem (Secrets) ou Local (Arquivo)
     try:
         creds_info = st.secrets["gcp_service_account"]
         creds = Credentials.from_service_account_info(creds_info, scopes=scope)
@@ -31,7 +31,7 @@ def load_data():
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
-    # 1. Limpeza da coluna Valor
+    # 1. Limpeza da coluna Valor (Converte R$ para número)
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -43,12 +43,10 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
-    # 2. TRATAMENTO DE DATAS (Para evitar o erro 'nan')
+    # 2. Tratamento rigoroso de DATAS
     if 'Data' in df.columns:
-        # Converte para data e remove linhas que não possuem data válida
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-        df = df.dropna(subset=['Data'])
-        # Cria coluna Mes_Ano para agrupamento e filtros
+        df = df.dropna(subset=['Data'])  # Remove o que não for data válida (limpa o 'nan')
         df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')
 
     return df
@@ -59,52 +57,56 @@ try:
     df = load_data()
 
     if df.empty:
-        st.warning("Nenhum dado válido encontrado na planilha. Verifique as datas e valores.")
+        st.warning("Aguardando dados válidos na planilha (verifique a coluna Data).")
     else:
         st.title("📊 Meu Dashboard Financeiro")
 
         # --- SIDEBAR (FILTROS) ---
         st.sidebar.header("Configurações de Filtro")
 
-        # Filtro de Mês/Ano
+        # Filtro de Mês/Ano para as Métricas e Pizza
         lista_meses = sorted(df['Mes_Ano'].unique().tolist(), reverse=True)
-        mes_selecionado = st.sidebar.selectbox("Escolha o Mês de análise", lista_meses)
+        mes_selecionado = st.sidebar.selectbox("Mês de análise detalhada", lista_meses)
 
         # Filtro de Categoria
         lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])
-        cat_escolhidas = st.sidebar.multiselect("Categorias", lista_cat, default=lista_cat)
+        cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, default=lista_cat)
 
-        # --- APLICANDO FILTROS ---
-        # df_mes: Dados apenas do mês selecionado
-        # df_filtrado: Mês selecionado + Categorias selecionadas
+        # --- PREPARAÇÃO DOS DADOS FILTRADOS ---
         df_mes = df[df['Mes_Ano'] == mes_selecionado]
         df_filtrado = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
 
-        # --- MÉTRICAS (Baseadas no mês selecionado) ---
+        # --- MÉTRICAS DO MÊS ---
         col_tipo = "Tipo (Entrada/Saída)"
         entradas = df_mes[df_mes[col_tipo] == "ENTRADA"]["Valor"].sum()
         saidas = df_mes[df_mes[col_tipo] == "SAÍDA"]["Valor"].sum()
         saldo = entradas - saidas
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("Entradas em " + mes_selecionado, f"R$ {entradas:,.2f}")
-        m2.metric("Saídas em " + mes_selecionado, f"R$ {saidas:,.2f}")
-        m3.metric("Saldo do Mês", f"R$ {saldo:,.2f}", delta=f"{saldo:,.2f}")
+        m1.metric(f"Entradas ({mes_selecionado})", f"R$ {entradas:,.2f}")
+        m2.metric(f"Saídas ({mes_selecionado})", f"R$ {saidas:,.2f}")
+        m3.metric("Saldo Mensal", f"R$ {saldo:,.2f}", delta=f"{saldo:,.2f}")
 
         st.divider()
 
-        # --- GRÁFICO 1: EVOLUÇÃO MENSAL (Compara todos os meses da planilha) ---
-        st.subheader("📈 Evolução Financeira Mensal")
-        df_evolucao = df.groupby(['Mes_Ano', col_tipo])['Valor'].sum().reset_index()
+        # --- GRÁFICO 1: EVOLUÇÃO DIA A DIA (Histórico Real) ---
+        st.subheader("📈 Evolução Financeira (Datas Reais da Planilha)")
+
+        # Aqui agrupamos pela DATA exata para o gráfico não ficar travado no dia 1º
+        df_evolucao_real = df.groupby(['Data', col_tipo])['Valor'].sum().reset_index()
+
         fig_evolucao = px.line(
-            df_evolucao,
-            x='Mes_Ano',
+            df_evolucao_real,
+            x='Data',
             y='Valor',
             color=col_tipo,
             markers=True,
             color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
-            labels={"Mes_Ano": "Mês de Referência", "Valor": "Total (R$)"}
+            labels={"Data": "Dia da Transação", "Valor": "Valor (R$)"},
+            template="plotly_dark"
         )
+        # Melhora a exibição das datas no eixo X
+        fig_evolucao.update_xaxes(tickformat="%d/%m/%y", dtick="D1")
         st.plotly_chart(fig_evolucao, use_container_width=True)
 
         # --- GRÁFICOS DO MÊS SELECIONADO ---
@@ -117,12 +119,12 @@ try:
                 values="Valor",
                 names="Categoria",
                 hole=0.4,
-                color_discrete_sequence=px.colors.qualitative.Pastel
+                color_discrete_sequence=px.colors.qualitative.T10
             )
             st.plotly_chart(fig_pizza, use_container_width=True)
 
         with c2:
-            st.subheader(f"Comparativo por Tipo ({mes_selecionado})")
+            st.subheader(f"Entradas vs Saídas ({mes_selecionado})")
             fig_bar = px.bar(
                 df_mes.groupby(col_tipo)["Valor"].sum().reset_index(),
                 x=col_tipo,
@@ -132,11 +134,9 @@ try:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- TABELA DE DADOS ---
-        with st.expander("🔍 Detalhes de todas as transações deste mês"):
+        # --- TABELA DE CONFERÊNCIA ---
+        with st.expander("🔍 Visualizar lista de lançamentos deste mês"):
             st.dataframe(df_filtrado.sort_values("Data", ascending=False), use_container_width=True)
 
 except Exception as e:
-    st.error("Ocorreu um erro ao carregar os dados.")
-    st.info(
-        f"Dica: Verifique se a coluna 'Data' na planilha está preenchida corretamente (Ex: 01/02/2026). Detalhe: {e}")
+    st.error(f"Erro ao processar dados: {e}")

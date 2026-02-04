@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import plotly.express as px
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(layout="wide", page_title="Dashboard Financeiro")
+st.set_page_config(layout="wide", page_title="Dashboard Financeiro Profissional")
 
 
 # --- FUNÇÃO PARA CARREGAR DADOS ---
@@ -16,26 +16,22 @@ def load_data():
 
     # Tenta carregar as credenciais (Híbrido: Nuvem ou Local)
     try:
-        # 1. Tenta usar os Secrets do Streamlit Cloud
         creds_info = st.secrets["gcp_service_account"]
         creds = Credentials.from_service_account_info(creds_info, scopes=scope)
     except Exception:
-        # 2. Se falhar, tenta usar o arquivo local no seu PC
         try:
             creds = Credentials.from_service_account_file("Projetos Pessoais/credentials.json", scopes=scope)
         except:
             creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
 
     client = gspread.authorize(creds)
-
-    # Abre a planilha e a aba exata
     spreadsheet = client.open("Controle Financeiro Mensal com Gráficos")
     sheet = spreadsheet.worksheet("Controle de Gastos")
 
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
-    # Limpeza da coluna Valor (converte R$ para número)
+    # 1. Limpeza da coluna Valor
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -47,6 +43,14 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
+    # 2. TRATAMENTO DE DATAS (Para evitar o erro 'nan')
+    if 'Data' in df.columns:
+        # Converte para data e remove linhas que não possuem data válida
+        df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+        df = df.dropna(subset=['Data'])
+        # Cria coluna Mes_Ano para agrupamento e filtros
+        df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')
+
     return df
 
 
@@ -55,65 +59,72 @@ try:
     df = load_data()
 
     if df.empty:
-        st.warning("A aba 'Controle de Gastos' foi encontrada, mas está sem dados.")
+        st.warning("Nenhum dado válido encontrado na planilha. Verifique as datas e valores.")
     else:
         st.title("📊 Meu Dashboard Financeiro")
-        st.markdown(f"Status: **Conectado com sucesso!**")
 
-        # --- FILTROS ---
-        st.sidebar.header("Filtros")
-        lista_cat = [c for c in df["Categoria"].unique().tolist() if c]
-        escolha = st.sidebar.multiselect("Selecione as Categorias", lista_cat, default=lista_cat)
+        # --- SIDEBAR (FILTROS) ---
+        st.sidebar.header("Configurações de Filtro")
 
-        df_filtrado = df[df["Categoria"].isin(escolha)]
+        # Filtro de Mês/Ano
+        lista_meses = sorted(df['Mes_Ano'].unique().tolist(), reverse=True)
+        mes_selecionado = st.sidebar.selectbox("Escolha o Mês de análise", lista_meses)
 
-        # --- MÉTRICAS ---
+        # Filtro de Categoria
+        lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])
+        cat_escolhidas = st.sidebar.multiselect("Categorias", lista_cat, default=lista_cat)
+
+        # --- APLICANDO FILTROS ---
+        # df_mes: Dados apenas do mês selecionado
+        # df_filtrado: Mês selecionado + Categorias selecionadas
+        df_mes = df[df['Mes_Ano'] == mes_selecionado]
+        df_filtrado = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
+
+        # --- MÉTRICAS (Baseadas no mês selecionado) ---
         col_tipo = "Tipo (Entrada/Saída)"
-        entradas = df_filtrado[df_filtrado[col_tipo] == "ENTRADA"]["Valor"].sum()
-        saidas = df_filtrado[df_filtrado[col_tipo] == "SAÍDA"]["Valor"].sum()
+        entradas = df_mes[df_mes[col_tipo] == "ENTRADA"]["Valor"].sum()
+        saidas = df_mes[df_mes[col_tipo] == "SAÍDA"]["Valor"].sum()
         saldo = entradas - saidas
 
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Total Entradas", f"R$ {entradas:,.2f}")
-        c2.metric("Total Saídas", f"R$ {saidas:,.2f}")
-        c3.metric("Saldo Real", f"R$ {saldo:,.2f}")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Entradas em " + mes_selecionado, f"R$ {entradas:,.2f}")
+        m2.metric("Saídas em " + mes_selecionado, f"R$ {saidas:,.2f}")
+        m3.metric("Saldo do Mês", f"R$ {saldo:,.2f}", delta=f"{saldo:,.2f}")
 
         st.divider()
 
-        # --- LOGICA DE DATAS (Adicione após carregar o df) ---
-        df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-        df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')  # Cria uma coluna "2026-02"
-
-        # --- FILTRO DE MÊS NA SIDEBAR ---
-        meses_disponiveis = sorted(df['Mes_Ano'].unique().tolist())
-        mes_selecionado = st.sidebar.selectbox("Selecione o Mês para análise detalhada", meses_disponiveis)
-
-        # Filtra os dados para o dashboard principal
-        df_mes = df[df['Mes_Ano'] == mes_selecionado]
-
-        # --- NOVO GRÁFICO: EVOLUÇÃO MENSAL (Comparações) ---
-        st.subheader("Comparação Mensal: Entradas vs Saídas")
-        df_evolucao = df.groupby(['Mes_Ano', 'Tipo (Entrada/Saída)'])['Valor'].sum().reset_index()
-        fig_evolucao = px.line(df_evolucao, x='Mes_Ano', y='Valor', color='Tipo (Entrada/Saída)', markers=True)
+        # --- GRÁFICO 1: EVOLUÇÃO MENSAL (Compara todos os meses da planilha) ---
+        st.subheader("📈 Evolução Financeira Mensal")
+        df_evolucao = df.groupby(['Mes_Ano', col_tipo])['Valor'].sum().reset_index()
+        fig_evolucao = px.line(
+            df_evolucao,
+            x='Mes_Ano',
+            y='Valor',
+            color=col_tipo,
+            markers=True,
+            color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
+            labels={"Mes_Ano": "Mês de Referência", "Valor": "Total (R$)"}
+        )
         st.plotly_chart(fig_evolucao, use_container_width=True)
 
-        # --- GRÁFICOS ---
-        col_esq, col_dir = st.columns(2)
+        # --- GRÁFICOS DO MÊS SELECIONADO ---
+        c1, c2 = st.columns(2)
 
-        with col_esq:
-            st.subheader("Gastos por Categoria")
+        with c1:
+            st.subheader(f"Gastos por Categoria ({mes_selecionado})")
             fig_pizza = px.pie(
                 df_filtrado[df_filtrado[col_tipo] == "SAÍDA"],
                 values="Valor",
                 names="Categoria",
-                hole=0.4
+                hole=0.4,
+                color_discrete_sequence=px.colors.qualitative.Pastel
             )
             st.plotly_chart(fig_pizza, use_container_width=True)
 
-        with col_dir:
-            st.subheader("Entradas vs Saídas")
+        with c2:
+            st.subheader(f"Comparativo por Tipo ({mes_selecionado})")
             fig_bar = px.bar(
-                df_filtrado.groupby(col_tipo)["Valor"].sum().reset_index(),
+                df_mes.groupby(col_tipo)["Valor"].sum().reset_index(),
                 x=col_tipo,
                 y="Valor",
                 color=col_tipo,
@@ -121,10 +132,11 @@ try:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- TABELA ---
-        with st.expander("Ver dados brutos"):
-            st.dataframe(df_filtrado, use_container_width=True)
+        # --- TABELA DE DADOS ---
+        with st.expander("🔍 Detalhes de todas as transações deste mês"):
+            st.dataframe(df_filtrado.sort_values("Data", ascending=False), use_container_width=True)
 
 except Exception as e:
-    st.error("Erro ao carregar o dashboard.")
-    st.info(f"Detalhe técnico: {e}")
+    st.error("Ocorreu um erro ao carregar os dados.")
+    st.info(
+        f"Dica: Verifique se a coluna 'Data' na planilha está preenchida corretamente (Ex: 01/02/2026). Detalhe: {e}")

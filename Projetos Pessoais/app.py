@@ -30,6 +30,7 @@ def load_data():
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
+    # Limpeza da coluna Valor
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -41,6 +42,7 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
+    # Tratamento de Datas
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         df = df.dropna(subset=['Data'])
@@ -54,7 +56,7 @@ try:
     df = load_data()
 
     if df.empty:
-        st.warning("Aguardando dados válidos na planilha.")
+        st.warning("Nenhum dado encontrado.")
     else:
         st.title("📊 Meu Dashboard Financeiro")
 
@@ -82,40 +84,42 @@ try:
 
         st.divider()
 
-        # --- GRÁFICO 1: EVOLUÇÃO (CORREÇÃO DE MÚLTIPLAS INFOS NO MESMO DIA) ---
+        # --- GRÁFICO 1: EVOLUÇÃO (RESOLVENDO SOBREPOSIÇÃO) ---
         st.subheader("📈 Evolução Financeira Detalhada")
 
-        # Agrupamos por Data, Tipo e Categoria para garantir que transações diferentes no mesmo dia apareçam
-        df_evol_real = df.groupby(['Data', col_tipo, 'Categoria'])['Valor'].sum().reset_index()
+        # O reset_index cria a coluna 'index' usada no line_group para separar pontos do mesmo dia
+        df_evol_individual = df_mes.reset_index()
 
         fig_evolucao = px.line(
-            df_evol_real,
+            df_evol_individual,
             x='Data',
             y='Valor',
             color=col_tipo,
             markers=True,
+            line_group='index',  # Diferencia cada transação individualmente
             color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
             template="plotly_dark"
         )
 
-        # Ajuste do Hover para mostrar TODAS as categorias do dia de forma limpa
+        # Customização do Hover: Remove títulos de colunas e exibe nome completo "Categoria"
         fig_evolucao.update_traces(
-            customdata=df_evol_real[['Categoria']],
-            hovertemplate="<b>Valor:</b> R$ %{y:,.2f}<br><b>Cat:</b> %{customdata[0]}<extra></extra>"
+            customdata=df_evol_individual[['Categoria']],
+            hovertemplate="<b>Valor:</b> R$ %{y:,.2f}<br>" +
+                          "<b>Categoria:</b> %{customdata[0]}<extra></extra>"
         )
 
         fig_evolucao.update_layout(
-            hovermode="x unified",  # Mostra todos os pontos daquela data verticalmente
+            hovermode="x unified",  # Agrupa todos os lançamentos do dia na caixinha
             legend_title_text='',
             xaxis_title="",
             yaxis_title="Valor (R$)",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
 
-        fig_evolucao.update_xaxes(tickformat="%d/%m/%y", dtick="M1" if len(df_evol_real) > 30 else "D1")
+        fig_evolucao.update_xaxes(tickformat="%d/%m/%y", dtick="D1")
         st.plotly_chart(fig_evolucao, use_container_width=True)
 
-        # --- GRÁFICOS DO MÊS ---
+        # --- GRÁFICOS INFERIORES ---
         c1, c2 = st.columns(2)
         with c1:
             st.subheader(f"Gastos por Categoria ({mes_selecionado})")

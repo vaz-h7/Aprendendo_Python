@@ -113,13 +113,13 @@ try:
         st.subheader("📈 Evolução Financeira Detalhada")
 
         df_para_evolucao = df_para_evolucao.copy()
-        df_para_evolucao['Status'] = df_para_evolucao['Valor'].apply(lambda x: 'ENTRADA' if x > 0 else 'SAÍDA')
+        df_para_evolucao['Status'] = df_para_evolucao['Valor'].apply(lambda x: 'Receitas' if x > 0 else 'Despesas')
 
         df_plot = df_para_evolucao.groupby(['Data', 'Status', 'Categoria'])['Valor'].sum().reset_index()
         df_plot['Valor_Grafico'] = df_plot['Valor'].abs()
 
         fig_evolucao = px.line(df_plot, x='Data', y='Valor_Grafico', color='Status', markers=True,
-                               color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
+                               color_discrete_map={"Receitas": "#2ecc71", "Despesas": "#e74c3c"},
                                template="plotly_dark", custom_data=['Categoria', 'Valor'],
                                labels={"Valor_Grafico": "Valor (R$)", "Data": "Data"})
 

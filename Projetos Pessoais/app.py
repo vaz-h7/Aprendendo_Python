@@ -73,10 +73,15 @@ try:
         lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])
         cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, default=lista_cat)
 
-        # --- PREPARAÇÃO DOS DADOS ---
+        # --- PREPARAÇÃO DOS DADOS (APLICANDO FILTROS) ---
+        # Filtramos por mês
         df_mes = df[df['Mes_Ano'] == mes_selecionado]
-        df_mes_Receitas = df_mes[df_mes['Valor'] > 0]
-        df_mes_saidas = df_mes[df_mes['Valor'] < 0]
+
+        # Filtramos por categoria selecionada (Isso corrige o problema dos filtros laterais)
+        df_mes_filtrado = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
+
+        df_mes_Receitas = df_mes_filtrado[df_mes_filtrado['Valor'] > 0]
+        df_mes_saidas = df_mes_filtrado[df_mes_filtrado['Valor'] < 0]
 
         data_referencia = df['Data'].min().replace(day=1)
 
@@ -86,8 +91,8 @@ try:
             texto_periodo = "Histórico Total"
             intervalo_ms = 10 * 24 * 60 * 60 * 1000
         else:
-            df_para_evolucao = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
-            df_para_investimentos = df_mes
+            df_para_evolucao = df_mes_filtrado
+            df_para_investimentos = df_mes_filtrado
             texto_periodo = mes_visual
             intervalo_ms = 5 * 24 * 60 * 60 * 1000
 
@@ -153,7 +158,7 @@ try:
                 hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Movimentação:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_invest, use_container_width=True)
         else:
-            st.info(f"Nenhum registro de 'Investimento' encontrado.")
+            st.info(f"Nenhum registro de 'Investimento' encontrado com os filtros atuais.")
 
         # --- SEÇÃO: ANÁLISES MENSAIS ---
         st.divider()
@@ -176,6 +181,8 @@ try:
                 fig_pizza.update_traces(
                     hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>")
                 st.plotly_chart(fig_pizza, use_container_width=True)
+            else:
+                st.info("Sem dados de despesas para as categorias selecionadas.")
         with c2:
             st.subheader("Balanço Mensal")
             df_balanco = pd.DataFrame({
@@ -251,19 +258,15 @@ try:
         # --- LISTA DE LANÇAMENTOS ---
         with st.expander(f"🔍 Lista de lançamentos - {mes_visual}"):
 
-            # --- AJUSTE: Filtro de ordenação corrigido ---
             ordem_data = st.radio("Ordenar por data:", ["Mais recentes", "Mais antigos"],
                                   horizontal=True)
 
-            # Ajuste na lógica: "Mais antigos" é ascendente (True), "Mais recentes" é descendente (False)
             ascendente = True if ordem_data == "Mais antigos" else False
 
-            df_lista = df_mes.iloc[:, :-3].copy()
+            # Usamos o df_mes_filtrado para que a lista também respeite o multiselect lateral
+            df_lista = df_mes_filtrado.iloc[:, :-3].copy()
 
-            # Aplicamos a ordenação na coluna de Data (formato datetime)
             df_lista = df_lista.sort_values("Data", ascending=ascendente)
-
-            # Só depois de ordenar, formatamos para exibição
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')
 
 

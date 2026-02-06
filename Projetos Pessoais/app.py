@@ -31,7 +31,6 @@ def load_data():
     df = pd.DataFrame(data)
 
     if 'Valor' in df.columns:
-        # Limpeza mantendo o sinal negativo para que o Python entenda a matemática
         df['Valor'] = (
             df['Valor']
             .astype(str)
@@ -59,7 +58,8 @@ try:
     if df.empty:
         st.warning("Aguardando dados válidos na planilha.")
     else:
-        st.title("📊 Meu Dashboard Financeiro (Lógica de Sinais)")
+        # Removido "(Lógica de Sinais)" do título
+        st.title("📊 Meu Dashboard Financeiro")
 
         # --- SIDEBAR (FILTROS) ---
         st.sidebar.header("Configurações de Filtro")
@@ -74,11 +74,9 @@ try:
         lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])
         cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, default=lista_cat)
 
-        # --- PREPARAÇÃO DOS DADOS BASEADA EM SINAIS ---
+        # --- PREPARAÇÃO DOS DADOS ---
         df_mes = df[df['Mes_Ano'] == mes_selecionado]
 
-        # Define o que é Entrada e Saída puramente pelo sinal do Valor
-        # Entradas: > 0 | Saídas: < 0
         df_mes_entradas = df_mes[df_mes['Valor'] > 0]
         df_mes_saidas = df_mes[df_mes['Valor'] < 0]
 
@@ -93,13 +91,13 @@ try:
 
         # --- MÉTRICAS DO MÊS ---
         entradas_total = df_mes_entradas['Valor'].sum()
-        saidas_total = df_mes_saidas['Valor'].sum()  # Isso será um número negativo
-        saldo_mensal = entradas_total + saidas_total  # Matemática direta: 1000 + (-200) = 800
+        saidas_total = df_mes_saidas['Valor'].sum()
+        saldo_mensal = entradas_total + saidas_total
 
         m1, m2, m3 = st.columns(3)
-        m1.metric(f"Entradas (+)", f"R$ {entradas_total:,.2f}")
-        # Exibimos a saída como positivo no rótulo apenas para estética, mas o cálculo é negativo
-        m2.metric(f"Saídas (-)", f"R$ {abs(saidas_total):,.2f}")
+        # Removido (+) e (-) dos nomes das métricas
+        m1.metric("Entradas", f"R$ {entradas_total:,.2f}")
+        m2.metric("Saídas", f"R$ {abs(saidas_total):,.2f}")
         m3.metric("Saldo Líquido", f"R$ {saldo_mensal:,.2f}", delta=f"{saldo_mensal:,.2f}")
 
         st.divider()
@@ -107,12 +105,10 @@ try:
         # --- GRÁFICO 1: EVOLUÇÃO FINANCEIRA ---
         st.subheader("📈 Evolução Financeira Detalhada")
 
-        # Criamos uma coluna temporária no gráfico para colorir por sinal
         df_para_evolucao = df_para_evolucao.copy()
         df_para_evolucao['Status'] = df_para_evolucao['Valor'].apply(lambda x: 'ENTRADA' if x > 0 else 'SAÍDA')
 
         df_plot = df_para_evolucao.groupby(['Data', 'Status', 'Categoria'])['Valor'].sum().reset_index()
-        # Para o gráfico de linha, usamos o valor absoluto (abs) para a posição, mas a cor indica o tipo
         df_plot['Valor_Grafico'] = df_plot['Valor'].abs()
 
         fig_evolucao = px.line(df_plot, x='Data', y='Valor_Grafico', color='Status', markers=True,
@@ -128,14 +124,15 @@ try:
         # --- GRÁFICOS INFERIORES ---
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader(f"Distribuição de Gastos (-)")
+            # Removido (-) do título da distribuição
+            st.subheader("Distribuição de Gastos")
             df_pizza = df_mes_saidas.copy()
-            df_pizza['Valor'] = df_pizza['Valor'].abs()  # Pizza precisa de valores positivos
+            df_pizza['Valor'] = df_pizza['Valor'].abs()
             if not df_pizza.empty:
                 fig_pizza = px.pie(df_pizza, values="Valor", names="Categoria", hole=0.4)
                 st.plotly_chart(fig_pizza, use_container_width=True)
         with c2:
-            st.subheader(f"Balanço Mensal")
+            st.subheader("Balanço Mensal")
             df_balanco = pd.DataFrame({
                 'Tipo': ['Entradas', 'Saídas'],
                 'Total': [entradas_total, abs(saidas_total)]

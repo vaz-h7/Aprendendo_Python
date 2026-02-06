@@ -83,10 +83,12 @@ try:
             df_para_evolucao = df[df["Categoria"].isin(cat_escolhidas)]
             df_para_investimentos = df
             texto_periodo = "Histórico Total"
+            intervalo_dias = 86400000 * 10  # 10 dias em milissegundos
         else:
             df_para_evolucao = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
             df_para_investimentos = df_mes
             texto_periodo = mes_visual
+            intervalo_dias = 86400000 * 5  # 5 dias em milissegundos
 
         # --- MÉTRICAS DO MÊS ---
         entradas_total = df_mes_entradas['Valor'].sum()
@@ -112,10 +114,15 @@ try:
         fig_evolucao = px.line(df_plot, x='Data', y='Valor_Grafico', color='Status', markers=True,
                                color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
                                template="plotly_dark", custom_data=['Categoria', 'Valor'],
-                               labels={"Valor_Grafico": "Valor (R$)", "Data": "Data"})  # Renomeia os eixos
+                               labels={"Valor_Grafico": "Valor (R$)", "Data": "Data"})
 
-        # Ajuste fino dos eixos (Formatação Brasil e Títulos)
-        fig_evolucao.update_xaxes(tickformat="%d/%m/%Y")  # Formato de data brasileiro
+        # Ajuste de Eixos e Intervalos (Ajuste 3)
+        fig_evolucao.update_xaxes(
+            tickformat="%d/%m/%Y",
+            dtick=intervalo_dias,
+            tickmode="linear"
+        )
+
         fig_evolucao.update_layout(
             hovermode="closest",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
@@ -134,14 +141,18 @@ try:
             df_pizza['Valor'] = df_pizza['Valor'].abs()
             if not df_pizza.empty:
                 fig_pizza = px.pie(df_pizza, values="Valor", names="Categoria", hole=0.4)
+                # Ajuste 1: Formatação da caixa de informações da Pizza
+                fig_pizza.update_traces(
+                    hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>"
+                )
                 st.plotly_chart(fig_pizza, use_container_width=True)
         with c2:
             st.subheader("Balanço Mensal")
             df_balanco = pd.DataFrame({
-                'Tipo': ['Entradas', 'Saídas'],
+                'Status': ['Entradas', 'Saídas'],  # Ajuste 2: Trocado 'Tipo' por 'Status'
                 'Total': [entradas_total, abs(saidas_total)]
             })
-            fig_bar = px.bar(df_balanco, x='Tipo', y='Total', color='Tipo',
+            fig_bar = px.bar(df_balanco, x='Status', y='Total', color='Status',
                              color_discrete_map={"Entradas": "#2ecc71", "Saídas": "#e74c3c"})
             st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -160,7 +171,7 @@ try:
                 template="plotly_dark", color_discrete_sequence=px.colors.sequential.Greens_r,
                 labels={"Valor": "Valor (R$)", "Data": "Data"}
             )
-            fig_invest.update_xaxes(tickformat="%d/%m/%Y")
+            fig_invest.update_xaxes(tickformat="%d/%m/%Y", dtick=intervalo_dias, tickmode="linear")
             fig_invest.update_traces(
                 hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Movimentação:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_invest, use_container_width=True)

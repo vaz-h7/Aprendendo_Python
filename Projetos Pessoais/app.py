@@ -78,26 +78,25 @@ try:
         df_mes_Receitas = df_mes[df_mes['Valor'] > 0]
         df_mes_saidas = df_mes[df_mes['Valor'] < 0]
 
-        # Lógica de Data para o Eixo X: Começar no dia 01
+        # Lógica de Data para o Eixo X
         data_referencia = df['Data'].min().replace(day=1)
 
         if ver_tudo:
             df_para_evolucao = df[df["Categoria"].isin(cat_escolhidas)]
             df_para_investimentos = df
             texto_periodo = "Histórico Total"
-            intervalo_ms = 10 * 24 * 60 * 60 * 1000  # 10 dias para (1, 10, 20, 30)
+            intervalo_ms = 10 * 24 * 60 * 60 * 1000
         else:
             df_para_evolucao = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
             df_para_investimentos = df_mes
             texto_periodo = mes_visual
-            intervalo_ms = 5 * 24 * 60 * 60 * 1000  # 5 dias para (1, 5, 10...)
+            intervalo_ms = 5 * 24 * 60 * 60 * 1000
 
-        # --- MÉTRICAS DO MÊS ---
+            # --- MÉTRICAS DO MÊS ---
         Receitas_total = df_mes_Receitas['Valor'].sum()
         saidas_total = df_mes_saidas['Valor'].sum()
         saldo_mensal = Receitas_total + saidas_total
 
-        # Cálculo do Saldo Acumulado (Soma de tudo até o mês selecionado)
         data_limite = df_mes['Data'].max()
         saldo_acumulado = df[df['Data'] <= data_limite]['Valor'].sum()
 
@@ -118,7 +117,6 @@ try:
         df_plot = df_para_evolucao.groupby(['Data', 'Status', 'Categoria'])['Valor'].sum().reset_index()
         df_plot['Valor_Grafico'] = df_plot['Valor'].abs()
 
-        # ÚNICA ALTERAÇÃO: Adição do category_orders para fixar Receitas na esquerda e Despesas na direita
         fig_evolucao = px.line(df_plot, x='Data', y='Valor_Grafico', color='Status', markers=True,
                                color_discrete_map={"Receitas": "#2ecc71", "Despesas": "#e74c3c"},
                                category_orders={"Status": ["Receitas", "Despesas"]},
@@ -136,9 +134,15 @@ try:
         st.divider()
         st.subheader(f"💰 Evolução de Investimentos ({texto_periodo})")
 
-        # --- ALTERAÇÃO SOLICITADA: Fonte reduzida e Título "Total Investido" ---
+        # --- ALTERAÇÃO SOLICITADA: Cor condicional no Valor ---
         total_invest_acumulado = df[df["Categoria"].str.contains("Investimento", case=False, na=False)]["Valor"].sum()
-        st.write(f'<p style="font-size:16px;"><b>Total Investido: R$ {total_invest_acumulado:,.2f}</b></p>', unsafe_allow_html=True)
+        cor_valor = "#2ecc71" if total_invest_acumulado >= 0 else "#e74c3c"
+
+        st.write(f'''
+            <p style="font-size:16px; font-weight:bold;">
+                Total Investido: <span style="color:{cor_valor};">R$ {total_invest_acumulado:,.2f}</span>
+            </p>
+            ''', unsafe_allow_html=True)
 
         df_invest = df_para_investimentos[
             df_para_investimentos["Categoria"].str.contains("Investimento", case=False, na=False)]
@@ -185,7 +189,7 @@ try:
             fig_bar.update_traces(hovertemplate="<b>Status:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- RESUMO POR CATEGORIA COM TOTAL DESTACADO ---
+        # --- RESUMO POR CATEGORIA ---
         st.markdown("### 📋 Resumo de Gastos por Categoria")
         if not df_mes_saidas.empty:
             resumo_cat = (
@@ -196,19 +200,16 @@ try:
                 .sort_values(by="Valor", ascending=False)
             )
 
-            # Cálculo do total de Despesas e anexação da linha TOTAL
             total_gastos = resumo_cat["Valor"].sum()
             linha_total = pd.DataFrame({"Categoria": ["TOTAL"], "Valor": [total_gastos]})
             resumo_final = pd.concat([resumo_cat, linha_total], ignore_index=True)
 
 
-            # Função para aplicar a cor vermelha na linha do TOTAL
             def highlight_total(row):
                 return ['background-color: #990000; color: white; font-weight: bold' if row.Categoria == 'TOTAL' else ''
                         for _ in row]
 
 
-            # Estilização e Formatação Monetária
             resumo_styled = (
                 resumo_final.style
                 .apply(highlight_total, axis=1)

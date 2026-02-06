@@ -205,7 +205,7 @@ try:
             df_rec = df_mes_saidas.copy()
             df_rec['Valor_Abs'] = df_rec['Valor'].abs()
 
-            # Garantimos que não existam "Receitas" aqui filtrando novamente
+            # Filtragem estrita para remover "Receitas" da análise de recorrência de gastos
             df_rec_plot = df_rec[df_rec['Recorrência'] != 'Receitas'].groupby("Recorrência")[
                 "Valor_Abs"].sum().reset_index()
 
@@ -215,11 +215,11 @@ try:
                 y="Valor_Abs",
                 color="Recorrência",
                 template="plotly_dark",
-                # CORES CORRIGIDAS: Vermelho, Amarelo e Azul
+                # CORES ATUALIZADAS: Tons pastéis tranquilos
                 color_discrete_map={
-                    "Não Recorrentes": "#FF0000",  # Vermelho Puro
-                    "Recorrentes": "#FFFF00",  # Amarelo Puro
-                    "Fixos": "#0000FF"  # Azul Puro
+                    "Não Recorrentes": "#E57373",  # Vermelho suave
+                    "Recorrentes": "#FFF176",      # Amarelo palha
+                    "Fixos": "#64B5F6"             # Azul tranquilo
                 },
                 labels={"Valor_Abs": "Total (R$)"}
             )

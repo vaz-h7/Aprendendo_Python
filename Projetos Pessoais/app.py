@@ -204,6 +204,8 @@ try:
         if not df_mes_saidas.empty:
             df_rec = df_mes_saidas.copy()
             df_rec['Valor_Abs'] = df_rec['Valor'].abs()
+
+            # Agrupamento para o gráfico
             df_rec_plot = df_rec.groupby("Recorrência")["Valor_Abs"].sum().reset_index()
 
             fig_recorrencia = px.bar(
@@ -212,17 +214,20 @@ try:
                 y="Valor_Abs",
                 color="Recorrência",
                 template="plotly_dark",
+                # AJUSTE DE CORES SOLICITADO
                 color_discrete_map={
-                    "Fixos": "#3498db",        # Azul
-                    "Recorrentes": "#f1c40f",  # Amarelo
-                    "Não Recorrentes": "#e74c3c" # Vermelho
+                    "Não Recorrentes": "#e74c3c",  # Vermelho
+                    "Fixos": "#3498db",  # Azul
+                    "Recorrentes": "#f1c40f"  # Amarelo
                 },
                 labels={"Valor_Abs": "Total (R$)"}
             )
-            # AJUSTE DA CAIXA DE INFORMAÇÕES (HOVER)
+
+            # FORMATAÇÃO DA CAIXA DE INFORMAÇÕES (HOVER)
             fig_recorrencia.update_traces(
                 hovertemplate="<b>Recorrência:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>"
             )
+
             st.plotly_chart(fig_recorrencia, use_container_width=True)
 
         # --- RESUMO POR CATEGORIA ---
@@ -274,9 +279,11 @@ try:
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')
             df_lista = df_lista.sort_values("Data", ascending=False)
 
+
             def color_valor(val):
                 color = '#2ecc71' if val > 0 else '#e74c3c'
                 return f'color: {color}; font-weight: bold'
+
 
             lista_styled = (
                 df_lista.style

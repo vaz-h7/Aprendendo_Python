@@ -167,7 +167,7 @@ try:
                     hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>")
                 st.plotly_chart(fig_pizza, use_container_width=True)
         with c2:
-            st.subheader("Balanço")
+            st.subheader("Balanço Mensal")
             df_balanco = pd.DataFrame({
                 'Status': ['Entradas', 'Saídas'],
                 'Total': [entradas_total, abs(saidas_total)]

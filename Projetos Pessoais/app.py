@@ -168,7 +168,31 @@ try:
             df_pizza = df_mes_saidas.copy()
             df_pizza['Valor'] = df_pizza['Valor'].abs()
             if not df_pizza.empty:
-                fig_pizza = px.pie(df_pizza, values="Valor", names="Categoria", hole=0.4)
+                # --- ALTERAÇÃO SOLICITADA: MAPEAMENTO DE CORES DO GRÁFICO DE PIZZA ---
+                cores_categorias = {
+                    "Amazon 🎬": "#ADD8E6",  # azul claro
+                    "Spotify 🎧": "#006400",  # verde escuro
+                    "Academia 💪": "#808080",  # cinza
+                    "Telefone 📞": "#F08080",  # vermelho claro
+                    "Apple 🍎": "#FFFFFF",  # branco
+                    "Barbeiro 💈": "#8B4513",  # castanho
+                    "Uber 🚗": "#000000",  # preto
+                    "Alimentação 🍟": "#FFA500",  # laranja
+                    "Roupas 👕": "#00008B",  # azul escuro
+                    "Jogos 🎮": "#8B0000",  # vermelho escuro
+                    "Outros ❓": "#800080",  # roxo
+                    "Pensão 💵": "#90EE90",  # verde claro
+                    "Investimento 🏦": "#90EE90"  # verde claro
+                }
+
+                fig_pizza = px.pie(
+                    df_pizza,
+                    values="Valor",
+                    names="Categoria",
+                    hole=0.4,
+                    color="Categoria",
+                    color_discrete_map=cores_categorias
+                )
                 fig_pizza.update_traces(
                     hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>")
                 st.plotly_chart(fig_pizza, use_container_width=True)
@@ -215,7 +239,7 @@ try:
         else:
             st.info("Sem gastos registrados para este mês.")
 
-        # --- ALTERAÇÃO SOLICITADA: LISTA DE LANÇAMENTOS ---
+        # --- LISTA DE LANÇAMENTOS ---
         with st.expander(f"🔍 Lista de lançamentos - {mes_visual}"):
             # 1. Copia e remove as 3 últimas colunas
             df_lista = df_mes.iloc[:, :-3].copy()

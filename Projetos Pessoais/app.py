@@ -74,10 +74,7 @@ try:
         cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, default=lista_cat)
 
         # --- PREPARAÇÃO DOS DADOS (APLICANDO FILTROS) ---
-        # Filtramos por mês
         df_mes = df[df['Mes_Ano'] == mes_selecionado]
-
-        # Filtramos por categoria selecionada (Isso corrige o problema dos filtros laterais)
         df_mes_filtrado = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
 
         df_mes_Receitas = df_mes_filtrado[df_mes_filtrado['Valor'] > 0]
@@ -122,7 +119,7 @@ try:
         df_plot['Valor_Grafico'] = df_plot['Valor'].abs()
 
         fig_evolucao = px.line(df_plot, x='Data', y='Valor_Grafico', color='Status', markers=True,
-                               color_discrete_map={"Receitas": "#81C784", "Despesas": "#E57373"},
+                               color_discrete_map={"Receitas": "#28a745", "Despesas": "#dc3545"},
                                category_orders={"Status": ["Receitas", "Despesas"]},
                                template="plotly_dark", custom_data=['Categoria', 'Valor'],
                                labels={"Valor_Grafico": "Valor (R$)", "Data": "Data"})
@@ -139,7 +136,7 @@ try:
         st.subheader(f"💰 Evolução de Investimentos ({texto_periodo})")
 
         total_invest_acumulado = df[df["Categoria"].str.contains("Investimento", case=False, na=False)]["Valor"].sum()
-        cor_valor = "#81C784" if total_invest_acumulado >= 0 else "#E57373"
+        cor_valor = "#28a745" if total_invest_acumulado >= 0 else "#dc3545"
         st.write(
             f'<p style="font-size:16px; font-weight:bold;">Total Investido: <span style="color:{cor_valor};">R$ {total_invest_acumulado:,.2f}</span></p>',
             unsafe_allow_html=True)
@@ -190,7 +187,7 @@ try:
                 'Total': [Receitas_total, abs(saidas_total)]
             })
             fig_bar = px.bar(df_balanco, x='Status', y='Total', color='Status',
-                             color_discrete_map={"Receitas": "#81C784", "Despesas": "#E57373"},
+                             color_discrete_map={"Receitas": "#28a745", "Despesas": "#dc3545"},
                              labels={"Total": "Valor (R$)"})
             fig_bar.update_traces(hovertemplate="<b>Status:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_bar, use_container_width=True)
@@ -212,9 +209,9 @@ try:
                 template="plotly_dark",
                 category_orders={"Recorrência": ["Fixos", "Recorrentes", "Não Recorrentes"]},
                 color_discrete_map={
-                    "Não Recorrentes": "#E57373",
-                    "Recorrentes": "#FFF176",
-                    "Fixos": "#64B5F6"
+                    "Não Recorrentes": "#dc3545",
+                    "Recorrentes": "#ffc107",
+                    "Fixos": "#007bff"
                 },
                 labels={"Valor_Abs": "Total (R$)"}
             )
@@ -263,15 +260,13 @@ try:
 
             ascendente = True if ordem_data == "Mais antigos" else False
 
-            # Usamos o df_mes_filtrado para que a lista também respeite o multiselect lateral
             df_lista = df_mes_filtrado.iloc[:, :-3].copy()
-
             df_lista = df_lista.sort_values("Data", ascending=ascendente)
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')
 
 
             def color_valor(val):
-                color = '#81C784' if val > 0 else '#E57373'
+                color = '#28a745' if val > 0 else '#dc3545'
                 return f'color: {color}; font-weight: bold'
 
 

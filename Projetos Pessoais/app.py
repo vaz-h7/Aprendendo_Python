@@ -78,8 +78,12 @@ try:
 
         if ver_tudo:
             df_para_evolucao = df[df["Categoria"].isin(cat_escolhidas)]
+            df_para_investimentos = df  # Histórico total para investimentos
+            texto_periodo = "Histórico Total"
         else:
             df_para_evolucao = df_filtrado_mes
+            df_para_investimentos = df_mes  # Apenas mês atual para investimentos
+            texto_periodo = mes_visual
 
         # --- MÉTRICAS DO MÊS ---
         entradas = df_mes[df_mes[col_tipo] == "ENTRADA"]["Valor"].sum()
@@ -93,7 +97,7 @@ try:
 
         st.divider()
 
-        # --- GRÁFICO 1: EVOLUÇÃO ---
+        # --- GRÁFICO 1: EVOLUÇÃO GERAL ---
         st.subheader("📈 Evolução Financeira Detalhada")
         df_plot = df_para_evolucao.groupby(['Data', col_tipo, 'Categoria'])['Valor'].sum().reset_index()
         fig_evolucao = px.line(df_plot, x='Data', y='Valor', color=col_tipo, markers=True,
@@ -122,39 +126,37 @@ try:
                              color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"})
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- NOVA SEÇÃO: FOCO EM INVESTIMENTOS E PENSÃO ---
+        # --- NOVA SEÇÃO: EVOLUÇÃO DE INVESTIMENTOS ---
         st.divider()
-        st.subheader("💰 Análise de Investimentos e Receitas Especiais")
+        st.subheader(f"🚀 Evolução de Investimentos ({texto_periodo})")
 
-        # Filtramos apenas as categorias desejadas (Pensão e Investimento)
-        # Nota: O código procura o termo "Investimento" e "Pensão" no texto da categoria
-        df_especial = df_mes[df_mes["Categoria"].str.contains("Investimento|Pensão", case=False, na=False)]
+        # Filtramos apenas o que contém "Investimento"
+        df_invest = df_para_investimentos[
+            df_para_investimentos["Categoria"].str.contains("Investimento", case=False, na=False)]
 
-        if not df_especial.empty:
-            total_investido = df_especial[df_especial["Categoria"].str.contains("Investimento", case=False)][
-                "Valor"].sum()
-            total_pensao = df_especial[df_especial["Categoria"].str.contains("Pensão", case=False)]["Valor"].sum()
+        if not df_invest.empty:
+            # Agrupamos por Data e Categoria para o gráfico de linha
+            df_invest_plot = df_invest.groupby(['Data', 'Categoria'])['Valor'].sum().reset_index()
 
-            # Métricas específicas
-            i1, i2 = st.columns(2)
-            i1.metric("Total Investido no Mês", f"R$ {total_investido:,.2f}")
-            i2.metric("Total Pensão Recebida", f"R$ {total_pensao:,.2f}")
-
-            # Gráfico de comparação (Barra)
-            df_especial_agrupado = df_especial.groupby("Categoria")["Valor"].sum().reset_index()
-            fig_especial = px.bar(
-                df_especial_agrupado,
-                x="Categoria",
-                y="Valor",
-                color="Categoria",
-                text_auto='.2s',
-                title=f"Distribuição: Investimento vs Pensão ({mes_visual})",
-                template="plotly_dark",
-                color_discrete_sequence=px.colors.qualitative.Pastel
+            fig_invest = px.line(
+                df_invest_plot,
+                x='Data',
+                y='Valor',
+                color='Categoria',
+                markers=True,
+                title="Acompanhamento de Aportes",
+                template="plotly_dark"
             )
-            st.plotly_chart(fig_especial, use_container_width=True)
+
+            fig_invest.update_layout(hovermode="x unified")
+            fig_invest.update_xaxes(tickformat="%d/%m/%y", tickangle=45, nticks=10)
+            st.plotly_chart(fig_invest, use_container_width=True)
+
+            # Métrica rápida de total investido no período
+            total_inv_periodo = df_invest["Valor"].sum()
+            st.info(f"O valor total investido em {texto_periodo} foi de **R$ {total_inv_periodo:,.2f}**")
         else:
-            st.info("Nenhum registro de 'Investimento' ou 'Pensão' encontrado para este mês.")
+            st.info(f"Nenhum registro de 'Investimento' encontrado para {texto_periodo}.")
 
         with st.expander(f"🔍 Lista de lançamentos - {mes_visual}"):
             st.dataframe(df_filtrado_mes.sort_values("Data", ascending=False), use_container_width=True)

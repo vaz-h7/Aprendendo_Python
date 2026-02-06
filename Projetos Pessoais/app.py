@@ -14,6 +14,7 @@ def load_data():
     scope = ["https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
 
+    # Lógica de Credenciais (Nuvem ou Local)
     try:
         creds_info = st.secrets["gcp_service_account"]
         creds = Credentials.from_service_account_info(creds_info, scopes=scope)
@@ -30,6 +31,7 @@ def load_data():
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
+    # 1. Limpeza da coluna Valor
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -41,6 +43,7 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
+    # 2. Tratamento de Datas (Evita o erro 'nan')
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         df = df.dropna(subset=['Data'])
@@ -54,7 +57,7 @@ try:
     df = load_data()
 
     if df.empty:
-        st.warning("Aguardando dados válidos na planilha.")
+        st.warning("Nenhum dado válido encontrado na planilha. Verifique as datas.")
     else:
         st.title("📊 Meu Dashboard Financeiro")
 
@@ -66,6 +69,7 @@ try:
         lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])
         cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, default=lista_cat)
 
+        # Dados filtrados para métricas e pizza
         df_mes = df[df['Mes_Ano'] == mes_selecionado]
         df_filtrado = df_mes[df_mes["Categoria"].isin(cat_escolhidas)]
 
@@ -82,25 +86,40 @@ try:
 
         st.divider()
 
-        # --- GRÁFICO 1: EVOLUÇÃO DIA A DIA COM CATEGORIA NO HOVER ---
+        # --- GRÁFICO 1: EVOLUÇÃO DIA A DIA (AJUSTADO) ---
         st.subheader("📈 Evolução Financeira Detalhada")
 
-        # Agrupamos por Data, Tipo E Categoria para não perder a informação na legenda interna
-        df_evolucao_real = df.groupby(['Data', col_tipo, 'Categoria'])['Valor'].sum().reset_index()
+        # Agrupamento para garantir que a categoria apareça individualmente
+        df_evol_real = df.groupby(['Data', col_tipo, 'Categoria'])['Valor'].sum().reset_index()
 
         fig_evolucao = px.line(
-            df_evolucao_real,
+            df_evol_real,
             x='Data',
             y='Valor',
             color=col_tipo,
             markers=True,
-            hover_data={'Categoria': True, 'Data': '|%d/%m/%y', 'Valor': ':,.2f'},  # <-- A mágica está aqui!
             color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
-            labels={"Data": "Dia", "Valor": "Valor (R$)", "Categoria": "Categoria"},
             template="plotly_dark"
         )
 
-        fig_evolucao.update_xaxes(tickformat="%d/%m/%y", dtick="D1")
+        # CUSTOMIZAÇÃO DO HOVER (Remove sinais de = e nomes de colunas brutos)
+        fig_evolucao.update_traces(
+            customdata=df_evol_real[['Categoria']],
+            hovertemplate="<b>Data:</b> %{x|%d/%m/%y}<br>" +
+                          "<b>Valor:</b> R$ %{y:,.2f}<br>" +
+                          "<b>Categoria:</b> %{customdata[0]}<extra></extra>"
+        )
+
+        # LIMPEZA DE LEGENDAS E EIXOS
+        fig_evolucao.update_layout(
+            hovermode="x unified",
+            legend_title_text='',  # Remove "Tipo (Entrada/Saída)" da legenda
+            xaxis_title="",  # Remove o título "Dia"
+            yaxis_title="Valor (R$)",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+
+        fig_evolucao.update_xaxes(tickformat="%d/%m/%y", dtick="M1" if len(df_evol_real) > 30 else "D1")
         st.plotly_chart(fig_evolucao, use_container_width=True)
 
         # --- GRÁFICOS DO MÊS SELECIONADO ---
@@ -126,9 +145,12 @@ try:
                 color=col_tipo,
                 color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"}
             )
+            # Limpeza rápida na legenda do gráfico de barra também
+            fig_bar.update_layout(showlegend=False, xaxis_title="", yaxis_title="Total (R$)")
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        with st.expander("🔍 Visualizar lista de lançamentos deste mês"):
+        # --- TABELA ---
+        with st.expander("🔍 Ver lançamentos deste mês"):
             st.dataframe(df_filtrado.sort_values("Data", ascending=False), use_container_width=True)
 
 except Exception as e:

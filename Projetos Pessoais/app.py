@@ -123,33 +123,7 @@ try:
             hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Valor Real:</b> R$ %{customdata[1]:,.2f}<br><b>Categoria:</b> %{customdata[0]}<extra></extra>")
         st.plotly_chart(fig_evolucao, use_container_width=True)
 
-        # --- SEÇÃO: ANÁLISES MENSAIS ---
-        st.divider()
-        st.header("🎯 Análises Mensais")  # Título geral para os dois gráficos abaixo
-
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("Distribuição de Gastos")
-            df_pizza = df_mes_saidas.copy()
-            df_pizza['Valor'] = df_pizza['Valor'].abs()
-            if not df_pizza.empty:
-                fig_pizza = px.pie(df_pizza, values="Valor", names="Categoria", hole=0.4)
-                fig_pizza.update_traces(
-                    hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>")
-                st.plotly_chart(fig_pizza, use_container_width=True)
-        with c2:
-            st.subheader("Balanço")  # Nome simplificado (removido "Mensal")
-            df_balanco = pd.DataFrame({
-                'Status': ['Entradas', 'Saídas'],
-                'Total': [entradas_total, abs(saidas_total)]
-            })
-            fig_bar = px.bar(df_balanco, x='Status', y='Total', color='Status',
-                             color_discrete_map={"Entradas": "#2ecc71", "Saídas": "#e74c3c"},
-                             labels={"Total": "Valor (R$)"})
-            fig_bar.update_traces(hovertemplate="<b>Status:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
-            st.plotly_chart(fig_bar, use_container_width=True)
-
-        # --- SEÇÃO: EVOLUÇÃO DE INVESTIMENTOS ---
+        # --- SEÇÃO: EVOLUÇÃO DE INVESTIMENTOS (MOVIDO PARA CIMA) ---
         st.divider()
         st.subheader(f"💰 Evolução de Investimentos ({texto_periodo})")
         df_invest = df_para_investimentos[
@@ -167,6 +141,32 @@ try:
             st.info(f"💸 Saldo de movimentações em investimentos em {texto_periodo}: **R$ {total_inv_periodo:,.2f}**")
         else:
             st.info(f"Nenhum registro de 'Investimento' encontrado.")
+
+        # --- SEÇÃO: ANÁLISES MENSAIS ---
+        st.divider()
+        st.header("🎯 Análises Mensais")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Distribuição de Gastos")
+            df_pizza = df_mes_saidas.copy()
+            df_pizza['Valor'] = df_pizza['Valor'].abs()
+            if not df_pizza.empty:
+                fig_pizza = px.pie(df_pizza, values="Valor", names="Categoria", hole=0.4)
+                fig_pizza.update_traces(
+                    hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>")
+                st.plotly_chart(fig_pizza, use_container_width=True)
+        with c2:
+            st.subheader("Balanço")
+            df_balanco = pd.DataFrame({
+                'Status': ['Entradas', 'Saídas'],
+                'Total': [entradas_total, abs(saidas_total)]
+            })
+            fig_bar = px.bar(df_balanco, x='Status', y='Total', color='Status',
+                             color_discrete_map={"Entradas": "#2ecc71", "Saídas": "#e74c3c"},
+                             labels={"Total": "Valor (R$)"})
+            fig_bar.update_traces(hovertemplate="<b>Status:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
         with st.expander(f"🔍 Lista de lançamentos - {mes_visual}"):
             st.dataframe(df_mes.sort_values("Data", ascending=False), use_container_width=True)

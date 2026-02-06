@@ -24,13 +24,12 @@ def load_data():
             creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
 
     client = gspread.authorize(creds)
-    spreadsheet = client.open("Controle Financeiro Mensal com Gráficos")
+    spreadsheet = client.open("Controle Financeiro Mensal with Gráficos")
     sheet = spreadsheet.worksheet("Controle de Gastos")
 
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
-    # Limpeza da coluna Valor
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -42,7 +41,6 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
-    # Tratamento de Datas
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         df = df.dropna(subset=['Data'])
@@ -60,7 +58,7 @@ try:
     else:
         st.title("📊 Meu Dashboard Financeiro")
 
-        # --- SIDEBAR (FILTROS) ---
+        # --- SIDEBAR ---
         st.sidebar.header("Configurações de Filtro")
         lista_meses = sorted(df['Mes_Ano'].unique().tolist(), reverse=True)
         mes_selecionado = st.sidebar.selectbox("Mês de análise detalhada", lista_meses)
@@ -84,32 +82,34 @@ try:
 
         st.divider()
 
-        # --- GRÁFICO 1: EVOLUÇÃO (RESOLVENDO SOBREPOSIÇÃO) ---
+        # --- GRÁFICO 1: EVOLUÇÃO (VERSÃO FINAL SEM SUMIÇO DE LINHAS) ---
         st.subheader("📈 Evolução Financeira Detalhada")
 
-        # O reset_index cria a coluna 'index' usada no line_group para separar pontos do mesmo dia
-        df_evol_individual = df_mes.reset_index()
+        # Estratégia: Agrupamos para a linha não quebrar, mas mantemos o detalhe no hover
+        df_evol = df_mes.copy()
+
+        # Criamos uma coluna de texto formatada para o hover que não interfere na estrutura da linha
+        df_evol['hover_text'] = df_evol.apply(lambda x: f"Valor: R$ {x['Valor']:,.2f}<br>Categoria: {x['Categoria']}",
+                                              axis=1)
 
         fig_evolucao = px.line(
-            df_evol_individual,
+            df_evol,
             x='Data',
             y='Valor',
             color=col_tipo,
             markers=True,
-            line_group='index',  # Diferencia cada transação individualmente
+            # Voltamos ao padrão para a linha conectar, mas o hover fará o trabalho duro
             color_discrete_map={"ENTRADA": "#2ecc71", "SAÍDA": "#e74c3c"},
-            template="plotly_dark"
+            template="plotly_dark",
+            custom_data=['hover_text']
         )
 
-        # Customização do Hover: Remove títulos de colunas e exibe nome completo "Categoria"
         fig_evolucao.update_traces(
-            customdata=df_evol_individual[['Categoria']],
-            hovertemplate="<b>Valor:</b> R$ %{y:,.2f}<br>" +
-                          "<b>Categoria:</b> %{customdata[0]}<extra></extra>"
+            hovertemplate="<b>%{customdata[0]}</b><extra></extra>"
         )
 
         fig_evolucao.update_layout(
-            hovermode="x unified",  # Agrupa todos os lançamentos do dia na caixinha
+            hovermode="x unified",
             legend_title_text='',
             xaxis_title="",
             yaxis_title="Valor (R$)",

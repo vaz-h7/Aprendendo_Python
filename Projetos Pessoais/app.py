@@ -91,7 +91,7 @@ try:
             texto_periodo = mes_visual
             intervalo_ms = 5 * 24 * 60 * 60 * 1000
 
-        # --- MÉTRICAS ---
+        # --- MÉTRICAS DO MÊS ---
         Receitas_total = df_mes_Receitas['Valor'].sum()
         saidas_total = df_mes_saidas['Valor'].sum()
         saldo_mensal = Receitas_total + saidas_total
@@ -107,10 +107,12 @@ try:
 
         st.divider()
 
-        # --- GRÁFICO 1: EVOLUÇÃO ---
+        # --- GRÁFICO 1: EVOLUÇÃO FINANCEIRA ---
         st.subheader("📈 Evolução Financeira Detalhada")
+
         df_para_evolucao = df_para_evolucao.copy()
         df_para_evolucao['Status'] = df_para_evolucao['Valor'].apply(lambda x: 'Receitas' if x > 0 else 'Despesas')
+
         df_plot = df_para_evolucao.groupby(['Data', 'Status', 'Categoria'])['Valor'].sum().reset_index()
         df_plot['Valor_Grafico'] = df_plot['Valor'].abs()
 
@@ -130,6 +132,7 @@ try:
         # --- SEÇÃO: EVOLUÇÃO DE INVESTIMENTOS ---
         st.divider()
         st.subheader(f"💰 Evolução de Investimentos ({texto_periodo})")
+
         total_invest_acumulado = df[df["Categoria"].str.contains("Investimento", case=False, na=False)]["Valor"].sum()
         cor_valor = "#81C784" if total_invest_acumulado >= 0 else "#E57373"
         st.write(
@@ -138,39 +141,60 @@ try:
 
         df_invest = df_para_investimentos[
             df_para_investimentos["Categoria"].str.contains("Investimento", case=False, na=False)]
+
         if not df_invest.empty:
             df_invest_plot = df_invest.groupby(['Data', 'Categoria'])['Valor'].sum().reset_index()
             fig_invest = px.line(df_invest_plot, x='Data', y='Valor', color='Categoria', markers=True,
                                  template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel,
                                  labels={"Valor": "Valor (R$)", "Data": "Data"})
+
             fig_invest.update_xaxes(tickformat="%d/%m/%Y", dtick=intervalo_ms, tick0=data_referencia, tickmode="linear")
+            fig_invest.update_traces(
+                hovertemplate="<b>Data:</b> %{x|%d/%m/%Y}<br><b>Movimentação:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_invest, use_container_width=True)
+        else:
+            st.info(f"Nenhum registro de 'Investimento' encontrado.")
 
         # --- SEÇÃO: ANÁLISES MENSAIS ---
         st.divider()
         st.header("🎯 Análises Mensais")
+
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("Distribuição de Gastos")
             df_pizza = df_mes_saidas.copy()
             df_pizza['Valor'] = df_pizza['Valor'].abs()
             if not df_pizza.empty:
-                fig_pizza = px.pie(df_pizza, values="Valor", names="Categoria", hole=0.4,
-                                   color_discrete_sequence=px.colors.qualitative.Pastel, template="plotly_dark")
+                # Ajuste: Removido o dicionário manual para usar paleta Pastel suave e automática
+                fig_pizza = px.pie(
+                    df_pizza,
+                    values="Valor",
+                    names="Categoria",
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.qualitative.Pastel,
+                    template="plotly_dark"
+                )
+                fig_pizza.update_traces(
+                    hovertemplate="<b>Categoria:</b> %{label}<br><b>Valor:</b> R$ %{value:,.2f}<br><b>Percentual:</b> %{percent}<extra></extra>")
                 st.plotly_chart(fig_pizza, use_container_width=True)
         with c2:
             st.subheader("Balanço Mensal")
-            df_balanco = pd.DataFrame(
-                {'Status': ['Receitas', 'Despesas'], 'Total': [Receitas_total, abs(saidas_total)]})
+            df_balanco = pd.DataFrame({
+                'Status': ['Receitas', 'Despesas'],
+                'Total': [Receitas_total, abs(saidas_total)]
+            })
             fig_bar = px.bar(df_balanco, x='Status', y='Total', color='Status',
-                             color_discrete_map={"Receitas": "#81C784", "Despesas": "#E57373"})
+                             color_discrete_map={"Receitas": "#81C784", "Despesas": "#E57373"},
+                             labels={"Total": "Valor (R$)"})
+            fig_bar.update_traces(hovertemplate="<b>Status:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- NOVO GRÁFICO: RECORRÊNCIA DOS GASTOS (BARRAS MAIS FINAS) ---
+        # --- GRÁFICO: RECORRÊNCIA DOS GASTOS ---
         st.subheader("🔄 Recorrência dos Gastos")
         if not df_mes_saidas.empty:
             df_rec = df_mes_saidas.copy()
             df_rec['Valor_Abs'] = df_rec['Valor'].abs()
+
             df_rec_plot = df_rec[df_rec['Recorrência'] != 'Receitas'].groupby("Recorrência")[
                 "Valor_Abs"].sum().reset_index()
 
@@ -189,28 +213,54 @@ try:
                 labels={"Valor_Abs": "Total (R$)"}
             )
 
-            # AJUSTE DA LARGURA: bargap=0.5 deixa as barras mais finas e elegantes
-            fig_recorrencia.update_layout(bargap=0.5)
-
             fig_recorrencia.update_traces(
                 hovertemplate="<b>Recorrência:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>"
             )
             st.plotly_chart(fig_recorrencia, use_container_width=True)
 
-        # --- RESUMO E LISTA (Final do Código) ---
+        # --- RESUMO POR CATEGORIA ---
         st.markdown("### 📋 Resumo de Gastos por Categoria")
         if not df_mes_saidas.empty:
-            resumo_cat = df_mes_saidas.groupby("Categoria")["Valor"].sum().abs().reset_index().sort_values(by="Valor",
-                                                                                                           ascending=False)
-            total_gastos = resumo_cat["Valor"].sum()
-            resumo_final = pd.concat([resumo_cat, pd.DataFrame({"Categoria": ["TOTAL"], "Valor": [total_gastos]})],
-                                     ignore_index=True)
-            st.dataframe(resumo_final.style.format({"Valor": "R$ {:,.2f}"}), use_container_width=True, hide_index=True)
+            resumo_cat = (
+                df_mes_saidas.groupby("Categoria")["Valor"]
+                .sum()
+                .abs()
+                .reset_index()
+                .sort_values(by="Valor", ascending=False)
+            )
 
+            total_gastos = resumo_cat["Valor"].sum()
+            linha_total = pd.DataFrame({"Categoria": ["TOTAL"], "Valor": [total_gastos]})
+            resumo_final = pd.concat([resumo_cat, linha_total], ignore_index=True)
+
+            def highlight_total(row):
+                return ['background-color: #5D1F1F; color: white; font-weight: bold' if row.Categoria == 'TOTAL' else ''
+                        for _ in row]
+
+            resumo_styled = (
+                resumo_final.style
+                .apply(highlight_total, axis=1)
+                .format({"Valor": "R$ {:,.2f}"})
+            )
+
+            st.dataframe(resumo_styled, use_container_width=True, hide_index=True)
+
+        # --- LISTA DE LANÇAMENTOS ---
         with st.expander(f"🔍 Lista de lançamentos - {mes_visual}"):
             df_lista = df_mes.iloc[:, :-3].copy()
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')
-            st.dataframe(df_lista.style.format({"Valor": "R$ {:,.2f}"}), use_container_width=True, hide_index=True)
+            df_lista = df_lista.sort_values("Data", ascending=False)
+
+            def color_valor(val):
+                color = '#81C784' if val > 0 else '#E57373'
+                return f'color: {color}; font-weight: bold'
+
+            lista_styled = (
+                df_lista.style
+                .map(color_valor, subset=['Valor'])
+                .format({"Valor": "R$ {:,.2f}"})
+            )
+            st.dataframe(lista_styled, use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error(f"Erro crítico: {e}")
+    st.error(f"Erro crítico no processamento: {e}")

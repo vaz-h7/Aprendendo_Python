@@ -70,12 +70,19 @@ try:
 
         ver_tudo = st.sidebar.checkbox("Visualizar todo o histórico no gráfico", value=False)
 
+        # Lógica para Selecionar Todas as Categorias
         lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])
-        cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, default=lista_cat)
 
-        # --- PREPARAÇÃO DOS DADOS (AJUSTADO PARA APLICAR O FILTRO DE CATEGORIAS) ---
+        if "selecao_categorias" not in st.session_state:
+            st.session_state.selecao_categorias = lista_cat
+
+        if st.sidebar.button("Selecionar todas categorias"):
+            st.session_state.selecao_categorias = lista_cat
+
+        cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, key="selecao_categorias")
+
+        # --- PREPARAÇÃO DOS DADOS ---
         df_mes_base = df[df['Mes_Ano'] == mes_selecionado]
-        # Aqui aplicamos a seleção do multiselect lateral
         df_mes = df_mes_base[df_mes_base["Categoria"].isin(cat_escolhidas)]
 
         df_mes_Receitas = df_mes[df_mes['Valor'] > 0]

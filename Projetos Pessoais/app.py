@@ -218,6 +218,7 @@ try:
             df_rec_plot = df_rec[df_rec['Recorrência'] != 'Receitas'].groupby("Recorrência")[
                 "Valor_Abs"].sum().reset_index()
 
+            # AQUI ESTÁ A ALTERAÇÃO: category_orders define a sequência Fixos -> Recorrentes -> Não Recorrentes
             fig_recorrencia = px.bar(
                 df_rec_plot,
                 x="Recorrência",
@@ -229,6 +230,7 @@ try:
                     "Recorrentes": "#FFF176",
                     "Fixos": "#64B5F6"
                 },
+                category_orders={"Recorrência": ["Fixos", "Recorrentes", "Não Recorrentes"]},
                 labels={"Valor_Abs": "Total (R$)"}
             )
 

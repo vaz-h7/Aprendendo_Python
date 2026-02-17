@@ -192,12 +192,12 @@ try:
 
         # --- NOVA SEÇÃO: ÁREA DO CARTÃO DE CRÉDITO ---
         st.divider()
-        st.subheader(f"💳 Área do Cartão de Crédito ({texto_periodo})")
+        st.subheader("💳 Área do Cartão de Crédito")
 
 
         # LOGICA DE FECHAMENTO (DIA 03)
-        # Se o dia for <= 3, pertence à fatura do mês anterior.
-        # Se o dia for > 3, pertence à fatura do mês atual.
+        # Se o dia for <= 2, pertence à fatura do mês anterior.
+        # Se o dia for > 2, pertence à fatura do mês atual.
         def calcular_fatura(row):
             dt = row['Data']
             if dt.day <= 2:
@@ -221,7 +221,7 @@ try:
                 df_faturas,
                 x='Mes_Fatura',
                 y='Valor',
-                title="Visão por Fatura (Fechamento dia 03)",
+                title="Visão por Fatura",
                 color_discrete_sequence=["#9b59b6"],
                 template="plotly_dark",
                 labels={"Valor": "Valor da Fatura (R$)", "Mes_Fatura": "Mês da Fatura"}

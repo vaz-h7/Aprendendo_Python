@@ -200,7 +200,7 @@ try:
         # Se o dia for > 3, pertence à fatura do mês atual.
         def calcular_fatura(row):
             dt = row['Data']
-            if dt.day <= 3:
+            if dt.day <= 2:
                 fatura_dt = dt - pd.DateOffset(months=1)
             else:
                 fatura_dt = dt

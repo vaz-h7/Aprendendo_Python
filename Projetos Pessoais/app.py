@@ -190,6 +190,42 @@ try:
         else:
             st.info(f"Nenhum registro de 'Investimento' encontrado.")
 
+        # --- NOVA SEÇÃO: ÁREA DO CARTÃO DE CRÉDITO ---
+        st.divider()
+        st.subheader(f"💳 Área do Cartão de Crédito ({texto_periodo})")
+
+        # Filtro para identificar gastos no Cartão de Crédito
+        df_cartao_base = df[df['Forma de Pagamento'].str.contains("Cartão de Crédito", case=False, na=False)]
+        df_cartao_mes = df_cartao_base[df_cartao_base['Mes_Ano'] == mes_selecionado]
+
+        if not df_cartao_base.empty:
+            # Gráfico de Visão de Faturas (Histórico de gastos no cartão)
+            df_faturas = df_cartao_base.groupby('Mes_Ano_Exibicao')['Valor'].sum().abs().reset_index()
+
+            # Ordenação correta das faturas
+            df_faturas['Data_Ref'] = pd.to_datetime(df_faturas['Mes_Ano_Exibicao'], format='%m/%Y')
+            df_faturas = df_faturas.sort_values('Data_Ref')
+
+            fig_cartao = px.bar(
+                df_faturas,
+                x='Mes_Ano_Exibicao',
+                y='Valor',
+                title="Visão por Fatura (Gastos no Cartão)",
+                color_discrete_sequence=["#9b59b6"],  # Roxo
+                template="plotly_dark",
+                labels={"Valor": "Valor da Fatura (R$)", "Mes_Ano_Exibicao": "Mês"}
+            )
+            fig_cartao.update_traces(hovertemplate="<b>Fatura:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
+            st.plotly_chart(fig_cartao, use_container_width=True)
+
+            # Resumo de compras parceladas do mês selecionado (onde a coluna Parcelas não é vazia)
+            if 'Parcelas' in df_cartao_mes.columns:
+                df_parc_lista = df_cartao_mes[df_cartao_mes['Parcelas'].astype(str).str.contains('/', na=False)]
+                if not df_parc_lista.empty:
+                    st.markdown(f"**Compras Parceladas na Fatura de {mes_visual}:**")
+                    st.dataframe(df_parc_lista[['Data', 'Categoria', 'Valor', 'Parcelas', 'Descrição (Opcional)']],
+                                 use_container_width=True, hide_index=True)
+
         # --- SEÇÃO: ANÁLISES MENSAIS ---
         st.divider()
         st.header("🎯 Análises Mensais")

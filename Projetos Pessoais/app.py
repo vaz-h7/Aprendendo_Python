@@ -194,37 +194,47 @@ try:
         st.divider()
         st.subheader(f"💳 Área do Cartão de Crédito ({texto_periodo})")
 
-        # Filtro para identificar gastos no Cartão de Crédito
-        df_cartao_base = df[df['Forma de Pagamento'].str.contains("Cartão de Crédito", case=False, na=False)]
-        df_cartao_mes = df_cartao_base[df_cartao_base['Mes_Ano'] == mes_selecionado]
+
+        # LOGICA DE FECHAMENTO (DIA 03)
+        # Se o dia for <= 3, pertence à fatura do mês anterior.
+        # Se o dia for > 3, pertence à fatura do mês atual.
+        def calcular_fatura(row):
+            dt = row['Data']
+            if dt.day <= 3:
+                fatura_dt = dt - pd.DateOffset(months=1)
+            else:
+                fatura_dt = dt
+            return fatura_dt.strftime('%m/%Y')
+
+
+        df_cartao_base = df[df['Forma de Pagamento'].str.contains("Cartão de Crédito", case=False, na=False)].copy()
 
         if not df_cartao_base.empty:
-            # Gráfico de Visão de Faturas (Histórico de gastos no cartão)
-            df_faturas = df_cartao_base.groupby('Mes_Ano_Exibicao')['Valor'].sum().abs().reset_index()
+            df_cartao_base['Mes_Fatura'] = df_cartao_base.apply(calcular_fatura, axis=1)
 
-            # Ordenação correta das faturas
-            df_faturas['Data_Ref'] = pd.to_datetime(df_faturas['Mes_Ano_Exibicao'], format='%m/%Y')
+            # Gráfico de Visão de Faturas
+            df_faturas = df_cartao_base.groupby('Mes_Fatura')['Valor'].sum().abs().reset_index()
+            df_faturas['Data_Ref'] = pd.to_datetime(df_faturas['Mes_Fatura'], format='%m/%Y')
             df_faturas = df_faturas.sort_values('Data_Ref')
 
             fig_cartao = px.bar(
                 df_faturas,
-                x='Mes_Ano_Exibicao',
+                x='Mes_Fatura',
                 y='Valor',
-                title="Visão por Fatura (Gastos no Cartão)",
-                color_discrete_sequence=["#9b59b6"],  # Roxo
+                title="Visão por Fatura (Fechamento dia 03)",
+                color_discrete_sequence=["#9b59b6"],
                 template="plotly_dark",
-                labels={"Valor": "Valor da Fatura (R$)", "Mes_Ano_Exibicao": "Mês"}
+                labels={"Valor": "Valor da Fatura (R$)", "Mes_Fatura": "Mês da Fatura"}
             )
-            fig_cartao.update_traces(hovertemplate="<b>Fatura:</b> %{x}<br><b>Total:</b> R$ %{y:,.2f}<extra></extra>")
             st.plotly_chart(fig_cartao, use_container_width=True)
 
-            # Resumo de compras parceladas do mês selecionado (onde a coluna Parcelas não é vazia)
-            if 'Parcelas' in df_cartao_mes.columns:
-                df_parc_lista = df_cartao_mes[df_cartao_mes['Parcelas'].astype(str).str.contains('/', na=False)]
-                if not df_parc_lista.empty:
-                    st.markdown(f"**Compras Parceladas na Fatura de {mes_visual}:**")
-                    st.dataframe(df_parc_lista[['Data', 'Categoria', 'Valor', 'Parcelas', 'Descrição (Opcional)']],
-                                 use_container_width=True, hide_index=True)
+            # Tabela de lançamentos que pertencem à fatura do mês visualizado
+            df_fatura_atual = df_cartao_base[df_cartao_base['Mes_Fatura'] == mes_visual]
+
+            if not df_fatura_atual.empty:
+                st.markdown(f"**Lançamentos da Fatura de {mes_visual}:**")
+                st.dataframe(df_fatura_atual[['Data', 'Categoria', 'Valor', 'Parcelas', 'Descrição (Opcional)']],
+                             use_container_width=True, hide_index=True)
 
         # --- SEÇÃO: ANÁLISES MENSAIS ---
         st.divider()
@@ -343,7 +353,6 @@ try:
 
 
             def color_valor_custom(val):
-                # Mantemos as cores visuais, mas a lógica de filtro já separou corretamente acima
                 color = '#2ecc71' if val > 0 else '#e74c3c'
                 return f'color: {color}; font-weight: bold'
 

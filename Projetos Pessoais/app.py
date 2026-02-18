@@ -236,12 +236,29 @@ try:
             st.plotly_chart(fig_cartao, use_container_width=True)
 
             # Tabela de lançamentos que pertencem à fatura do mês visualizado
-            df_fatura_atual = df_cartao_base[df_cartao_base['Mes_Fatura'] == mes_visual]
+            # --- AJUSTE DE FORMATAÇÃO DA TABELA DA FATURA ---
+            df_fatura_atual = df_cartao_base[df_cartao_base['Mes_Fatura'] == mes_visual].copy()
 
             if not df_fatura_atual.empty:
                 st.markdown(f"**Lançamentos da Fatura de {mes_visual}:**")
-                st.dataframe(df_fatura_atual[['Data', 'Categoria', 'Valor', 'Parcelas', 'Descrição (Opcional)']],
-                             use_container_width=True, hide_index=True)
+
+                # Criando cópia para exibir formatada mantendo os nomes de colunas originais
+                df_fatura_lista = df_fatura_atual[
+                    ['Data', 'Categoria', 'Valor', 'Parcelas', 'Descrição (Opcional)']].copy()
+                df_fatura_lista['Data'] = df_fatura_lista['Data'].dt.strftime('%d/%m/%Y')
+
+
+                def color_valor_custom(val):
+                    color = '#2ecc71' if val > 0 else '#e74c3c'
+                    return f'color: {color}; font-weight: bold'
+
+
+                fatura_styled = (
+                    df_fatura_lista.style
+                    .map(color_valor_custom, subset=['Valor'])
+                    .format({"Valor": "R$ {:,.2f}"})
+                )
+                st.dataframe(fatura_styled, use_container_width=True, hide_index=True)
 
         # --- SEÇÃO: ANÁLISES MENSAIS ---
         st.divider()

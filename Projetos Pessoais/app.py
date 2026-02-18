@@ -217,6 +217,11 @@ try:
             df_faturas['Data_Ref'] = pd.to_datetime(df_faturas['Mes_Fatura'], format='%m/%Y')
             df_faturas = df_faturas.sort_values('Data_Ref')
 
+            # --- AJUSTE SOLICITADO: VALOR TOTAL DA FATURA ATUAL ABAIXO DO TÍTULO ---
+            valor_fatura_atual = df_faturas.loc[df_faturas['Mes_Fatura'] == mes_visual, 'Valor'].sum()
+            st.metric(f"Total da Fatura ({mes_visual})", f"R$ {valor_fatura_atual:,.2f}")
+            # ----------------------------------------------------------------------
+
             fig_cartao = px.bar(
                 df_faturas,
                 x='Mes_Fatura',
@@ -227,7 +232,7 @@ try:
                 labels={"Valor": "Valor da Fatura (R$)", "Mes_Fatura": "Mês da Fatura"}
             )
 
-            # --- AJUSTE SOLICITADO AQUI ---
+            # --- AJUSTE SOLICITADO ANTERIORMENTE ---
             fig_cartao.update_traces(
                 hovertemplate="<b>Fatura:</b> %{x}<br><b>Valor Total:</b> R$ %{y:,.2f}<extra></extra>"
             )
@@ -236,13 +241,11 @@ try:
             st.plotly_chart(fig_cartao, use_container_width=True)
 
             # Tabela de lançamentos que pertencem à fatura do mês visualizado
-            # --- AJUSTE DE FORMATAÇÃO DA TABELA DA FATURA ---
             df_fatura_atual = df_cartao_base[df_cartao_base['Mes_Fatura'] == mes_visual].copy()
 
             if not df_fatura_atual.empty:
                 st.markdown(f"**Lançamentos da Fatura de {mes_visual}:**")
 
-                # Criando cópia para exibir formatada mantendo os nomes de colunas originais
                 df_fatura_lista = df_fatura_atual[
                     ['Data', 'Categoria', 'Valor', 'Parcelas', 'Descrição (Opcional)']].copy()
                 df_fatura_lista['Data'] = df_fatura_lista['Data'].dt.strftime('%d/%m/%Y')

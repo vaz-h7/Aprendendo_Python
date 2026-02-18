@@ -226,6 +226,13 @@ try:
                 template="plotly_dark",
                 labels={"Valor": "Valor da Fatura (R$)", "Mes_Fatura": "Mês da Fatura"}
             )
+
+            # --- AJUSTE SOLICITADO AQUI ---
+            fig_cartao.update_traces(
+                hovertemplate="<b>Fatura:</b> %{x}<br><b>Valor Total:</b> R$ %{y:,.2f}<extra></extra>"
+            )
+            # ------------------------------
+
             st.plotly_chart(fig_cartao, use_container_width=True)
 
             # Tabela de lançamentos que pertencem à fatura do mês visualizado

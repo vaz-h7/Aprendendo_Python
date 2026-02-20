@@ -1,34 +1,35 @@
 import streamlit as st
 import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 import plotly.express as px
-import urllib.parse  # <--- Adicione este import no topo do seu código
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(layout="wide", page_title="Controle Financeiro Real-Time")
 
 
 # --- FUNÇÃO PARA CARREGAR DADOS ---
 @st.cache_data(ttl=60)
 def load_data():
-    # ID extraído da sua imagem image_18e6fc.png
-    SHEET_ID = "1Rn6P_Q-8mFreWRi12xiTjlYsF6_OxqoZrESPJMel2_c"
-    SHEET_NAME = "Controle de Gastos"
-
-    # Esta linha "traduz" o nome da aba automaticamente (ex: espaço vira %20)
-    sheet_name_encoded = urllib.parse.quote(SHEET_NAME)
-
-    # URL de exportação robusta
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_encoded}"
+    scope = ["https://www.googleapis.com/auth/spreadsheets",
+             "https://www.googleapis.com/auth/drive"]
 
     try:
-        # Lendo os dados
-        df = pd.read_csv(url)
+        creds_info = st.secrets["gcp_service_account"]
+        creds = Credentials.from_service_account_info(creds_info, scopes=scope)
+    except Exception:
+        try:
+            creds = Credentials.from_service_account_file("Projetos Pessoais/credentials.json", scopes=scope)
+        except:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
 
-        # Limpeza: Remove colunas e linhas que o Google Sheets às vezes envia vazias
-        df = df.dropna(how='all', axis=1).dropna(how='all', axis=0)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("Controle Financeiro Mensal com Gráficos")
+    sheet = spreadsheet.worksheet("Controle de Gastos")
 
-    except Exception as e:
-        st.error(f"Erro ao acessar a planilha: {e}")
-        return pd.DataFrame()
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
 
-    # --- PROCESSAMENTO (Mantendo sua lógica original exatamente como estava) ---
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -51,11 +52,11 @@ def load_data():
 
 
 # --- INTERFACE DO DASHBOARD ---
-# (O restante do seu código permanece igual daqui para baixo...)
 try:
     df = load_data()
+
     if df.empty:
-        st.warning("Aguardando dados válidos na planilha. Verifique se a primeira aba é a de 'Controle de Gastos'.")
+        st.warning("Aguardando dados válidos na planilha.")
     else:
         st.title("📊 Meu Dashboard Financeiro")
 

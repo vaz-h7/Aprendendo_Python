@@ -11,19 +11,25 @@ st.set_page_config(layout="wide", page_title="Controle Financeiro Real-Time")
 def load_data():
     # ID extraído da sua imagem image_18e6fc.png
     SHEET_ID = "1Rn6P_Q-8mFreWRi12xiTjlYsF6_OxqoZrESPJMel2_c"
-    # Nome exato da aba (Sheet)
-    SHEET_NAME = "Controle%20de%20Gastos"
 
-    # URL de exportação direta para CSV (Não precisa de credentials.json)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
+    # O GID '0' geralmente refere-se à primeira aba da esquerda.
+    # Se a aba "Controle de Gastos" for a primeira, esse link é infalível:
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
 
     try:
-        # O pandas lê a URL diretamente como um arquivo CSV
         df = pd.read_csv(url)
+
+        # Verificação de segurança: se a planilha veio vazia ou com colunas erradas
+        if df.empty or 'Data' not in df.columns:
+            # Tentativa alternativa caso o GID 0 não seja a aba correta
+            url_alt = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Controle%20de%20Gastos"
+            df = pd.read_csv(url_alt)
+
     except Exception as e:
         st.error(f"Erro ao acessar a planilha pública: {e}")
         return pd.DataFrame()
 
+    # --- PROCESSAMENTO DOS DADOS (Mantido exatamente como o seu original) ---
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -46,11 +52,11 @@ def load_data():
 
 
 # --- INTERFACE DO DASHBOARD ---
+# (O restante do seu código permanece igual daqui para baixo...)
 try:
     df = load_data()
-
     if df.empty:
-        st.warning("Aguardando dados válidos na planilha.")
+        st.warning("Aguardando dados válidos na planilha. Verifique se a primeira aba é a de 'Controle de Gastos'.")
     else:
         st.title("📊 Meu Dashboard Financeiro")
 

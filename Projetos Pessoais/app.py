@@ -384,7 +384,8 @@ try:
             )
 
             # Mantendo o iloc original da base para remover as colunas extras no final
-            df_lista = df_mes.iloc[:, :-3].copy()
+            # Como agora temos a coluna 'Ano', aumentamos o offset de -3 para -4
+            df_lista = df_mes.iloc[:, :-4].copy()
             ascendente = True if ordem == "Mais antigas" else False
             df_lista = df_lista.sort_values("Data", ascending=ascendente)
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')

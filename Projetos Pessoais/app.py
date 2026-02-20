@@ -47,8 +47,6 @@ def load_data():
         df = df.dropna(subset=['Data']).sort_values('Data')
         df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')
         df['Mes_Ano_Exibicao'] = df['Data'].dt.strftime('%m/%Y')
-        # Adição da coluna de Ano para o filtro
-        df['Ano'] = df['Data'].dt.year.astype(str)
 
     return df
 
@@ -64,21 +62,11 @@ try:
 
         # --- SIDEBAR (FILTROS) ---
         st.sidebar.header("Configurações de Filtro")
+        df_meses = df[['Mes_Ano_Exibicao', 'Mes_Ano']].drop_duplicates().sort_values('Mes_Ano', ascending=False)
+        lista_exibicao = df_meses['Mes_Ano_Exibicao'].tolist()
 
-        # 1. Filtro de Ano
-        lista_anos = sorted(df['Ano'].unique().tolist(), reverse=True)
-        ano_selecionado = st.sidebar.selectbox("Ano", lista_anos)
-
-        # 2. Filtro de Mês (Filtrado pelo Ano selecionado para o filtro funcionar corretamente)
-        df_meses_do_ano = df[df['Ano'] == ano_selecionado]
-        df_opcoes_mes = df_meses_do_ano[['Mes_Ano_Exibicao', 'Mes_Ano']].drop_duplicates().sort_values('Mes_Ano',
-                                                                                                       ascending=False)
-
-        lista_exibicao_mes = df_opcoes_mes['Mes_Ano_Exibicao'].tolist()
-        mes_visual = st.sidebar.selectbox("Mês", lista_exibicao_mes)
-
-        # Chave crucial para o filtro do DataFrame (YYYY-MM)
-        mes_selecionado = df_opcoes_mes.loc[df_opcoes_mes['Mes_Ano_Exibicao'] == mes_visual, 'Mes_Ano'].values[0]
+        mes_visual = st.sidebar.selectbox("Mês de análise detalhada", lista_exibicao)
+        mes_selecionado = df_meses.loc[df_meses['Mes_Ano_Exibicao'] == mes_visual, 'Mes_Ano'].values[0]
 
         ver_tudo = st.sidebar.checkbox("Visualizar todo o histórico no gráfico", value=False)
 
@@ -93,8 +81,7 @@ try:
 
         cat_escolhidas = st.sidebar.multiselect("Filtrar Categorias", lista_cat, key="selecao_categorias")
 
-        # --- PREPARAÇÃO DOS DADOS (LÓGICA DE FILTRO) ---
-        # Aqui o filtro usa a variável mes_selecionado que agora está amarrada ao Ano
+        # --- PREPARAÇÃO DOS DADOS (LÓGICA DE FILTRO ADICIONADA) ---
         df_mes_base = df[df['Mes_Ano'] == mes_selecionado]
         df_mes = df_mes_base[df_mes_base["Categoria"].isin(cat_escolhidas)]
 
@@ -121,14 +108,17 @@ try:
             intervalo_ms = 5 * 24 * 60 * 60 * 1000
 
         # --- MÉTRICAS DO MÊS ---
+        # Somamos os valores absolutos para as métricas de exibição
         Receitas_total = df_mes_Receitas['Valor'].abs().sum()
         saidas_total_abs = df_mes_saidas['Valor'].abs().sum()
         saldo_mensal = Receitas_total - saidas_total_abs
 
         data_limite = df_mes_base['Data'].max()
 
+        # Para o saldo acumulado, precisamos garantir que o investimento positivo subtraia e o negativo some
         df_acum_temp = df[df['Data'] <= data_limite].copy()
         is_invest_acum = df_acum_temp['Categoria'].str.contains("Investimento", case=False, na=False)
+        # Invertemos o sinal do investimento para o cálculo do saldo:
         df_acum_temp.loc[is_invest_acum, 'Valor'] = -df_acum_temp.loc[is_invest_acum, 'Valor']
         saldo_acumulado = df_acum_temp['Valor'].sum()
 
@@ -146,6 +136,7 @@ try:
         df_para_evolucao = df_para_evolucao.copy()
 
 
+        # Ajuste do status no gráfico para refletir a nova lógica
         def definir_status(row):
             if "Investimento" in str(row['Categoria']):
                 return 'Receitas' if row['Valor'] < 0 else 'Despesas'
@@ -204,6 +195,9 @@ try:
         st.subheader("💳 Área do Cartão de Crédito")
 
 
+        # LOGICA DE FECHAMENTO (DIA 03)
+        # Se o dia for <= 2, pertence à fatura do mês anterior.
+        # Se o dia for > 2, pertence à fatura do mês atual.
         def calcular_fatura(row):
             dt = row['Data']
             if dt.day <= 2:
@@ -218,12 +212,15 @@ try:
         if not df_cartao_base.empty:
             df_cartao_base['Mes_Fatura'] = df_cartao_base.apply(calcular_fatura, axis=1)
 
+            # Gráfico de Visão de Faturas
             df_faturas = df_cartao_base.groupby('Mes_Fatura')['Valor'].sum().abs().reset_index()
             df_faturas['Data_Ref'] = pd.to_datetime(df_faturas['Mes_Fatura'], format='%m/%Y')
             df_faturas = df_faturas.sort_values('Data_Ref')
 
+            # --- AJUSTE SOLICITADO: VALOR TOTAL DA FATURA ATUAL ABAIXO DO TÍTULO ---
             valor_fatura_atual = df_faturas.loc[df_faturas['Mes_Fatura'] == mes_visual, 'Valor'].sum()
             st.metric(f"Total da Fatura ({mes_visual})", f"R$ {valor_fatura_atual:,.2f}")
+            # ----------------------------------------------------------------------
 
             fig_cartao = px.bar(
                 df_faturas,
@@ -235,12 +232,15 @@ try:
                 labels={"Valor": "Valor da Fatura (R$)", "Mes_Fatura": "Mês da Fatura"}
             )
 
+            # --- AJUSTE SOLICITADO ANTERIORMENTE ---
             fig_cartao.update_traces(
                 hovertemplate="<b>Fatura:</b> %{x}<br><b>Valor Total:</b> R$ %{y:,.2f}<extra></extra>"
             )
+            # ------------------------------
 
             st.plotly_chart(fig_cartao, use_container_width=True)
 
+            # Tabela de lançamentos que pertencem à fatura do mês visualizado
             df_fatura_atual = df_cartao_base[df_cartao_base['Mes_Fatura'] == mes_visual].copy()
 
             if not df_fatura_atual.empty:
@@ -370,11 +370,10 @@ try:
             ordem = st.radio(
                 "Ordenar por data:",
                 ["Mais recentes", "Mais antigas"],
-                horizontal=True,
-                key="ordem_lista"
+                horizontal=True
             )
 
-            df_lista = df_mes.iloc[:, :-4].copy()  # Slice ajustado para a nova coluna 'Ano'
+            df_lista = df_mes.iloc[:, :-3].copy()
             ascendente = True if ordem == "Mais antigas" else False
             df_lista = df_lista.sort_values("Data", ascending=ascendente)
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')

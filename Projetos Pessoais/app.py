@@ -77,7 +77,7 @@ try:
         mes_visual = st.sidebar.selectbox("Mês de análise detalhada", lista_exibicao)
         mes_selecionado = df_meses.loc[df_meses['Mes_Ano_Exibicao'] == mes_visual, 'Mes_Ano'].values[0]
 
-        ver_tudo = st.sidebar.checkbox("Visualizar todo o histórico no gráfico", value=False)
+        ver_tudo = st.sidebar.checkbox("Visualizar histórico anual", value=False)
 
         # Lógica para Selecionar Todas as Categorias
         lista_cat = sorted([c for c in df["Categoria"].unique().tolist() if c])

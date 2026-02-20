@@ -203,34 +203,3 @@ try:
                              color_discrete_map={"Receitas": "#2ecc71", "Despesas": "#e74c3c"})
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- RESUMO E LISTA FINAL ---
-        st.subheader("🔄 Recorrência dos Gastos")
-        if not df_mes_saidas.empty:
-            df_rec_plot = df_mes_saidas[df_mes_saidas['Recorrência'] != 'Receitas'].groupby("Recorrência")[
-                "Valor"].sum().abs().reset_index()
-            st.plotly_chart(
-                px.bar(df_rec_plot, x="Recorrência", y="Valor", color="Recorrência", template="plotly_dark"),
-                use_container_width=True)
-
-        st.markdown("### 📋 Resumo por Categoria")
-        if not df_mes_saidas.empty:
-            resumo_cat = df_mes_saidas.groupby("Categoria")["Valor"].sum().abs().reset_index().sort_values(by="Valor",
-                                                                                                           ascending=False)
-            resumo_cat = pd.concat(
-                [resumo_cat, pd.DataFrame({"Categoria": ["TOTAL"], "Valor": [resumo_cat["Valor"].sum()]})],
-                ignore_index=True)
-            st.dataframe(resumo_cat.style.apply(
-                lambda x: ['background-color: #990000' if x.Categoria == 'TOTAL' else '' for _ in x], axis=1).format(
-                {"Valor": "R$ {:,.2f}"}), use_container_width=True, hide_index=True)
-
-        with st.expander(f"🔍 Lista de lançamentos - {mes_visual}"):
-            ordem = st.radio("Ordenar por data:", ["Mais recentes", "Mais antigas"], horizontal=True)
-            df_lista = df_mes.iloc[:, :-4].copy()  # Remove colunas de filtro internas
-            df_lista = df_lista.sort_values("Data", ascending=(ordem == "Mais antigas"))
-            df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')
-            st.dataframe(df_lista.style.map(lambda x: f'color: {"#2ecc71" if x > 0 else "#e74c3c"}; font-weight: bold',
-                                            subset=['Valor']).format({"Valor": "R$ {:,.2f}"}), use_container_width=True,
-                         hide_index=True)
-
-except Exception as e:
-    st.error(f"Erro crítico: {e}")

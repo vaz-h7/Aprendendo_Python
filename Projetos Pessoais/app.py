@@ -1,35 +1,34 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(layout="wide", page_title="Controle Financeiro Real-Time")
+import urllib.parse  # <--- Adicione este import no topo do seu código
 
 
 # --- FUNÇÃO PARA CARREGAR DADOS ---
 @st.cache_data(ttl=60)
 def load_data():
-    # ID extraído da sua imagem
+    # ID extraído da sua imagem image_18e6fc.png
     SHEET_ID = "1Rn6P_Q-8mFreWRi12xiTjlYsF6_OxqoZrESPJMel2_c"
+    SHEET_NAME = "Controle de Gastos"
 
-    # Nome da aba com os espaços substituídos por %20 para a URL funcionar
-    SHEET_NAME = "Controle%20de%20Gastos"
+    # Esta linha "traduz" o nome da aba automaticamente (ex: espaço vira %20)
+    sheet_name_encoded = urllib.parse.quote(SHEET_NAME)
 
-    # URL de exportação direta (mais robusta contra erros de permissão)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
+    # URL de exportação robusta
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_encoded}"
 
     try:
-        # Lendo os dados com tratamento de erro específico
+        # Lendo os dados
         df = pd.read_csv(url)
 
-        # Limpeza: remove linhas e colunas fantasmas que o Google Sheets às vezes envia
+        # Limpeza: Remove colunas e linhas que o Google Sheets às vezes envia vazias
         df = df.dropna(how='all', axis=1).dropna(how='all', axis=0)
 
     except Exception as e:
         st.error(f"Erro ao acessar a planilha: {e}")
         return pd.DataFrame()
 
-    # --- PROCESSAMENTO DOS VALORES ---
+    # --- PROCESSAMENTO (Mantendo sua lógica original exatamente como estava) ---
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -42,7 +41,6 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
-    # --- PROCESSAMENTO DAS DATAS ---
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         df = df.dropna(subset=['Data']).sort_values('Data')

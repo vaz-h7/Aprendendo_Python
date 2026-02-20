@@ -105,12 +105,16 @@ try:
 
         data_referencia = df['Data'].min().replace(day=1)
 
+        # --- LÓGICA DE FILTRAGEM POR PERÍODO ---
         if ver_tudo:
-            df_para_evolucao = df[df["Categoria"].isin(cat_escolhidas)]
-            df_para_investimentos = df
-            texto_periodo = "Histórico Total"
-            intervalo_ms = 10 * 24 * 60 * 60 * 1000
+            # Filtra os dados apenas para o ano que está selecionado no seletor
+            df_para_evolucao = df[(df['Ano'] == ano_selecionado) & (df["Categoria"].isin(cat_escolhidas))]
+            df_para_investimentos = df[df['Ano'] == ano_selecionado]
+            texto_periodo = f"Histórico de {ano_selecionado}"
+            # Intervalo de 30 dias para não poluir o eixo X em uma visão anual
+            intervalo_ms = 30 * 24 * 60 * 60 * 1000
         else:
+            # Mantém a visão apenas do mês selecionado
             df_para_evolucao = df_mes
             df_para_investimentos = df_mes
             texto_periodo = mes_visual

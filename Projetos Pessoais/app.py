@@ -47,6 +47,8 @@ def load_data():
         df = df.dropna(subset=['Data']).sort_values('Data')
         df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')
         df['Mes_Ano_Exibicao'] = df['Data'].dt.strftime('%m/%Y')
+        # --- ALTERAÇÃO 1: Adicionando coluna de Ano ---
+        df['Ano'] = df['Data'].dt.year.astype(str)
 
     return df
 
@@ -62,7 +64,14 @@ try:
 
         # --- SIDEBAR (FILTROS) ---
         st.sidebar.header("Configurações de Filtro")
-        df_meses = df[['Mes_Ano_Exibicao', 'Mes_Ano']].drop_duplicates().sort_values('Mes_Ano', ascending=False)
+
+        # --- ALTERAÇÃO 2: Filtro de Ano ---
+        lista_anos = sorted(df['Ano'].unique().tolist(), reverse=True)
+        ano_selecionado = st.sidebar.selectbox("Selecione o Ano", lista_anos)
+
+        # Filtrar o dataframe de meses baseado no ano escolhido
+        df_meses = df[df['Ano'] == ano_selecionado][['Mes_Ano_Exibicao', 'Mes_Ano']].drop_duplicates().sort_values(
+            'Mes_Ano', ascending=False)
         lista_exibicao = df_meses['Mes_Ano_Exibicao'].tolist()
 
         mes_visual = st.sidebar.selectbox("Mês de análise detalhada", lista_exibicao)

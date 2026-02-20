@@ -9,27 +9,27 @@ st.set_page_config(layout="wide", page_title="Controle Financeiro Real-Time")
 # --- FUNÇÃO PARA CARREGAR DADOS ---
 @st.cache_data(ttl=60)
 def load_data():
-    # ID extraído da sua imagem image_18e6fc.png
+    # ID extraído da sua imagem
     SHEET_ID = "1Rn6P_Q-8mFreWRi12xiTjlYsF6_OxqoZrESPJMel2_c"
 
-    # Nome da aba exatamente como está na planilha
-    SHEET_NAME = "Controle de Gastos"
+    # Nome da aba com os espaços substituídos por %20 para a URL funcionar
+    SHEET_NAME = "Controle%20de%20Gastos"
 
-    # URL formatada para evitar o erro 404 e garantir a leitura da aba correta
+    # URL de exportação direta (mais robusta contra erros de permissão)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
     try:
-        # Lendo os dados
+        # Lendo os dados com tratamento de erro específico
         df = pd.read_csv(url)
 
-        # Limpeza básica: remove colunas ou linhas totalmente vazias que o Google gera
+        # Limpeza: remove linhas e colunas fantasmas que o Google Sheets às vezes envia
         df = df.dropna(how='all', axis=1).dropna(how='all', axis=0)
 
     except Exception as e:
-        st.error(f"Erro ao acessar a planilha pública: {e}")
+        st.error(f"Erro ao acessar a planilha: {e}")
         return pd.DataFrame()
 
-    # --- PROCESSAMENTO DOS VALORES (Mantendo sua lógica original) ---
+    # --- PROCESSAMENTO DOS VALORES ---
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -42,7 +42,7 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
-    # --- PROCESSAMENTO DAS DATAS (Mantendo sua lógica original) ---
+    # --- PROCESSAMENTO DAS DATAS ---
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         df = df.dropna(subset=['Data']).sort_values('Data')

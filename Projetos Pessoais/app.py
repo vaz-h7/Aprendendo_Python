@@ -47,6 +47,8 @@ def load_data():
         df = df.dropna(subset=['Data']).sort_values('Data')
         df['Mes_Ano'] = df['Data'].dt.strftime('%Y-%m')
         df['Mes_Ano_Exibicao'] = df['Data'].dt.strftime('%m/%Y')
+        # Adicionando coluna de Ano para o filtro
+        df['Ano'] = df['Data'].dt.year.astype(str)
 
     return df
 
@@ -62,11 +64,20 @@ try:
 
         # --- SIDEBAR (FILTROS) ---
         st.sidebar.header("Configurações de Filtro")
-        df_meses = df[['Mes_Ano_Exibicao', 'Mes_Ano']].drop_duplicates().sort_values('Mes_Ano', ascending=False)
-        lista_exibicao = df_meses['Mes_Ano_Exibicao'].tolist()
 
-        mes_visual = st.sidebar.selectbox("Mês de análise detalhada", lista_exibicao)
-        mes_selecionado = df_meses.loc[df_meses['Mes_Ano_Exibicao'] == mes_visual, 'Mes_Ano'].values[0]
+        # --- AJUSTE SOLICITADO: FILTROS SEPARADOS DE ANO E MÊS ---
+        lista_anos = sorted(df['Ano'].unique().tolist(), reverse=True)
+        ano_selecionado = st.sidebar.selectbox("Selecione o Ano", lista_anos)
+
+        # Filtra os meses baseados no ano selecionado
+        df_meses_filtrados = df[df['Ano'] == ano_selecionado][
+            ['Mes_Ano_Exibicao', 'Mes_Ano']].drop_duplicates().sort_values('Mes_Ano', ascending=False)
+        lista_exibicao = df_meses_filtrados['Mes_Ano_Exibicao'].tolist()
+
+        mes_visual = st.sidebar.selectbox("Selecione o Mês", lista_exibicao)
+        mes_selecionado = \
+        df_meses_filtrados.loc[df_meses_filtrados['Mes_Ano_Exibicao'] == mes_visual, 'Mes_Ano'].values[0]
+        # -------------------------------------------------------
 
         ver_tudo = st.sidebar.checkbox("Visualizar todo o histórico no gráfico", value=False)
 
@@ -373,7 +384,7 @@ try:
                 horizontal=True
             )
 
-            df_lista = df_mes.iloc[:, :-3].copy()
+            df_lista = df_mes.iloc[:, :-4].copy()  # Ajustado o slice para ignorar a nova coluna 'Ano'
             ascendente = True if ordem == "Mais antigas" else False
             df_lista = df_lista.sort_values("Data", ascending=ascendente)
             df_lista['Data'] = df_lista['Data'].dt.strftime('%d/%m/%Y')

@@ -12,24 +12,24 @@ def load_data():
     # ID extraído da sua imagem image_18e6fc.png
     SHEET_ID = "1Rn6P_Q-8mFreWRi12xiTjlYsF6_OxqoZrESPJMel2_c"
 
-    # O GID '0' geralmente refere-se à primeira aba da esquerda.
-    # Se a aba "Controle de Gastos" for a primeira, esse link é infalível:
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
+    # Nome da aba exatamente como está na planilha
+    SHEET_NAME = "Controle de Gastos"
+
+    # URL formatada para evitar o erro 404 e garantir a leitura da aba correta
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
     try:
+        # Lendo os dados
         df = pd.read_csv(url)
 
-        # Verificação de segurança: se a planilha veio vazia ou com colunas erradas
-        if df.empty or 'Data' not in df.columns:
-            # Tentativa alternativa caso o GID 0 não seja a aba correta
-            url_alt = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Controle%20de%20Gastos"
-            df = pd.read_csv(url_alt)
+        # Limpeza básica: remove colunas ou linhas totalmente vazias que o Google gera
+        df = df.dropna(how='all', axis=1).dropna(how='all', axis=0)
 
     except Exception as e:
         st.error(f"Erro ao acessar a planilha pública: {e}")
         return pd.DataFrame()
 
-    # --- PROCESSAMENTO DOS DADOS (Mantido exatamente como o seu original) ---
+    # --- PROCESSAMENTO DOS VALORES (Mantendo sua lógica original) ---
     if 'Valor' in df.columns:
         df['Valor'] = (
             df['Valor']
@@ -42,6 +42,7 @@ def load_data():
         )
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
 
+    # --- PROCESSAMENTO DAS DATAS (Mantendo sua lógica original) ---
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         df = df.dropna(subset=['Data']).sort_values('Data')

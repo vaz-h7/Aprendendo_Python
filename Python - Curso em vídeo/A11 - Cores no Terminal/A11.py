@@ -32,3 +32,4 @@ print('\033[7;30;46mTeste\033[m')
 print('\033[4;31;30mTeste\033[m')
 print('\033[;34;44mTeste\033[m')
 print('\033[7;35;47mTeste\033[m')
+#Teste
